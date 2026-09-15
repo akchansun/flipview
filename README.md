@@ -4,7 +4,7 @@
 
 Lightweight **macOS** image viewer: open one picture, flip through the same folder. Free and open source (MIT).
 
-**Gitee 仓库名：** `flipview`（国内访问更稳；GitHub 可作镜像）  
+**Gitee：** <https://gitee.com/akcg/flipview>（国内访问更稳；GitHub 可作镜像）  
 **开发者 / Developer:** [喜相逢科技 · www.ak129.cn](https://www.ak129.cn)
 
 > 主仓库建议放在 **Gitee**（`flipview`），GitHub 访问不便时可只维护 Gitee。
@@ -52,11 +52,9 @@ MIT，见 [LICENSE](LICENSE)。
 2. 本机执行：
 ```bash
 cd "/Volumes/MacBook/项目/Viewer"
-git remote add origin https://gitee.com/<你的用户名>/flipview.git
-git branch -M main
+git remote add origin git@gitee.com:akcg/flipview.git
 git push -u origin main
 ```
-把 `<你的用户名>` 换成你的 Gitee 账号。
 
 ---
 
