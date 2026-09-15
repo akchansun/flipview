@@ -50,7 +50,7 @@ enum AppVersion {
     }
 }
 
-/// Live feed at `https://www.ak129.cn/flip/version.json`. Extra keys (linux, assets) are ignored.
+/// Live feed at `https://www.ak129.cn/flip/version.json`. Extra keys (linux) are ignored.
 struct VersionFeed: Decodable, Sendable {
     let macos: MacOSRelease
 
@@ -68,6 +68,8 @@ struct VersionFeed: Decodable, Sendable {
             let site: String?
             let gitee: String?
             let github: String?
+            let giteeAsset: String?
+            let githubAsset: String?
         }
     }
 }

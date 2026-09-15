@@ -16,6 +16,7 @@
 		C0DE0000000000000000200A /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100A /* Localization.swift */; };
 		C0DE0000000000000000200B /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100B /* AppVersion.swift */; };
 		C0DE0000000000000000200C /* LaunchPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100C /* LaunchPrompts.swift */; };
+		C0DE0000000000000000200D /* DownloadMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100D /* DownloadMirror.swift */; };
 		C0DE00000000000000002007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000001009 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -30,6 +31,7 @@
 		C0DE0000000000000000100A /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		C0DE0000000000000000100B /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
 		C0DE0000000000000000100C /* LaunchPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchPrompts.swift; sourceTree = "<group>"; };
+		C0DE0000000000000000100D /* DownloadMirror.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadMirror.swift; sourceTree = "<group>"; };
 		C0DE00000000000000001007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0DE00000000000000001008 /* SimpleImageViewer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SimpleImageViewer.entitlements; sourceTree = "<group>"; };
 		C0DE00000000000000001009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 				C0DE0000000000000000100A /* Localization.swift */,
 				C0DE0000000000000000100B /* AppVersion.swift */,
 				C0DE0000000000000000100C /* LaunchPrompts.swift */,
+				C0DE0000000000000000100D /* DownloadMirror.swift */,
 				C0DE00000000000000001009 /* Assets.xcassets */,
 				C0DE00000000000000001007 /* Info.plist */,
 				C0DE00000000000000001008 /* SimpleImageViewer.entitlements */,
@@ -159,6 +162,7 @@
 				C0DE0000000000000000200A /* Localization.swift in Sources */,
 				C0DE0000000000000000200B /* AppVersion.swift in Sources */,
 				C0DE0000000000000000200C /* LaunchPrompts.swift in Sources */,
+				C0DE0000000000000000200D /* DownloadMirror.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

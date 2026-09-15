@@ -32,8 +32,8 @@ enum LaunchPrompts {
         Task { @MainActor in
             await waitForMainWindow()
             await presentTipsIfNeeded()
-            if let release = await fetch.value {
-                await presentUpdateIfNeeded(release)
+            if let offer = await fetch.value {
+                await presentUpdateIfNeeded(offer)
             }
         }
     }
@@ -75,7 +75,12 @@ enum LaunchPrompts {
         }
     }
 
-    private static func fetchNewerMacRelease() async -> VersionFeed.MacOSRelease? {
+    private struct PendingUpdate: Sendable {
+        let release: VersionFeed.MacOSRelease
+        let rankedURLs: Task<[URL], Never>
+    }
+
+    private static func fetchNewerMacRelease() async -> PendingUpdate? {
         if UserDefaults.standard.bool(forKey: PreferenceKey.updateCheckDontAskAgain) {
             return nil
         }
@@ -100,21 +105,25 @@ enum LaunchPrompts {
             guard !remote.isEmpty, AppVersion.isNewer(remote, than: AppVersion.currentMarketing) else {
                 return nil
             }
-            guard preferredDownloadURL(feed.macos.download) != nil else {
+            guard DownloadMirror.hasAnyCandidate(feed.macos.download) else {
                 return nil
             }
-            return feed.macos
+            let links = feed.macos.download
+            let rankedURLs = Task.detached(priority: .utility) {
+                await DownloadMirror.rankedOpenURLs(links)
+            }
+            return PendingUpdate(release: feed.macos, rankedURLs: rankedURLs)
         } catch {
             return nil
         }
     }
 
     @MainActor
-    private static func presentUpdateIfNeeded(_ release: VersionFeed.MacOSRelease) async {
+    private static func presentUpdateIfNeeded(_ offer: PendingUpdate) async {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: PreferenceKey.updateCheckDontAskAgain) else { return }
-        guard let url = preferredDownloadURL(release.download) else { return }
 
+        let release = offer.release
         let lang = LanguageManager.shared
         let notes: String
         switch lang.resolved {
@@ -144,7 +153,8 @@ enum LaunchPrompts {
         let response = await runAlert(alert)
         switch response {
         case .alertFirstButtonReturn:
-            NSWorkspace.shared.open(url)
+            let urls = await offer.rankedURLs.value
+            openDownloadFallback(urls)
         case .alertThirdButtonReturn:
             defaults.set(true, forKey: PreferenceKey.updateCheckDontAskAgain)
         default:
@@ -152,17 +162,14 @@ enum LaunchPrompts {
         }
     }
 
-    static func preferredDownloadURL(_ links: VersionFeed.MacOSRelease.Download?) -> URL? {
-        guard let links else { return nil }
-        for candidate in [links.site, links.gitee, links.github] {
-            guard let raw = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty,
-                  let url = URL(string: raw),
-                  let scheme = url.scheme?.lowercased(),
-                  scheme == "https" || scheme == "http"
-            else { continue }
-            return url
+    /// Winner first, other forge next, site last. `NSWorkspace.open` false → try the next URL.
+    @MainActor
+    private static func openDownloadFallback(_ urls: [URL]) {
+        for url in urls {
+            if NSWorkspace.shared.open(url) {
+                return
+            }
         }
-        return nil
     }
 
     @MainActor
