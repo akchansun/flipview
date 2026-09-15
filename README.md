@@ -4,10 +4,9 @@
 
 Lightweight **macOS** image viewer: open one picture, flip through the same folder. Free and open source (MIT).
 
-**Gitee：** <https://gitee.com/akcg/flipview>（国内访问更稳；GitHub 可作镜像）  
-**开发者 / Developer:** [喜相逢科技 · www.ak129.cn](https://www.ak129.cn/flip/)
-
-> 主仓库建议放在 **Gitee**（`flipview`），GitHub 访问不便时可只维护 Gitee。
+**Gitee:** <https://gitee.com/akcg/flipview>  
+**Product page:** <https://www.ak129.cn/flip/>  
+**Developer:** [喜相逢科技](https://www.ak129.cn/)
 
 ---
 
@@ -30,33 +29,26 @@ Flip 是一款免费开源的 macOS 看图工具，用法接近经典 Windows �
 ### 编译
 
 发布用 **Release 通用包**（`x86_64` + `arm64`），Intel 与 Apple Silicon（M 系列）均可原生运行。
+
 ```bash
-xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer -configuration Release
+xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
+  -configuration Release -destination 'generic/platform=macOS' \
+  ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO
 ```
-或用 Xcode 打开 `SimpleImageViewer.xcodeproj`，Scheme 选 **SimpleImageViewer**，运行后产物为 **Flip.app**。
 
-> 工程目录暂名 `SimpleImageViewer`（历史原因），产品名与品牌为 **Flip**。发布到 Gitee 仓库 `flipview`；若需要再镜像到 GitHub。
+或用 Xcode 打开 `SimpleImageViewer.xcodeproj`，Scheme 选 **SimpleImageViewer**，产物为 **Flip.app**。
 
-### 关于喜相逢科技
-Flip 由[安康喜相逢科技](https://www.ak129.cn/flip/)维护。我们做福彩数字化、彩店积分、英语教培与本地 IT 服务。软件服务，非购彩渠道，不承诺中奖。
+> 工程目录暂名 `SimpleImageViewer`（历史原因），产品名与品牌为 **Flip**。
 
-- 网站：<https://www.ak129.cn/flip/>
-- 电话：177 7296 8885
+### 下载
+- 官网：<https://www.ak129.cn/flip/>
+- 源码：<https://gitee.com/akcg/flipview>
+
+### 关于
+Flip 由[安康喜相逢科技](https://www.ak129.cn/)维护。我们做福彩数字化、彩店积分、英语教培与本地 IT 服务。软件服务，非购彩渠道，不承诺中奖。
 
 ### 许可证
 MIT，见 [LICENSE](LICENSE)。
-
----
-
-## 发布到 Gitee
-
-1. 在 [gitee.com](https://gitee.com) 新建仓库，名称建议 `flipview`，公开，不要勾选「使用 Readme 初始化」（本地已有文件）。
-2. 本机执行：
-```bash
-cd "/Volumes/MacBook/项目/Viewer"
-git remote add origin git@gitee.com:akcg/flipview.git
-git push -u origin main
-```
 
 ---
 
@@ -81,12 +73,19 @@ Flip is a free, open-source macOS image viewer. Open one image, then flip throug
 Ship a **Release universal** binary (`x86_64` + `arm64`) so Intel and Apple Silicon Macs both run natively.
 
 ```bash
-xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer -configuration Release
+xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
+  -configuration Release -destination 'generic/platform=macOS' \
+  ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO
 ```
+
 Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 
+### Download
+- Website: <https://www.ak129.cn/flip/>
+- Source: <https://gitee.com/akcg/flipview>
+
 ### Credits
-Maintained by [Xixiangfeng Tech (安康喜相逢科技)](https://www.ak129.cn/flip/) — lottery-shop digital tools, points systems, English education software, and local IT in Ankang, China.
+Maintained by [Xixiangfeng Tech (安康喜相逢科技)](https://www.ak129.cn/) — lottery-shop digital tools, points systems, English education software, and local IT in Ankang, China.
 
 ### License
 MIT — see [LICENSE](LICENSE).
