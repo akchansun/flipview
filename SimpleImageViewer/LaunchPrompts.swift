@@ -13,7 +13,7 @@ enum PreferenceKey {
     static let updateCheckDontAskAgain = "updateCheckDontAskAgain"
 }
 
-/// Startup tips (every launch unless dismissed with 「不再提示」) then an online update check.
+/// One combined launch dialog for tips and/or updates (not two sequential NSAlerts).
 enum LaunchPrompts {
     static let feedURL = URL(string: "https://www.ak129.cn/flip/version.json")!
 
@@ -31,10 +31,8 @@ enum LaunchPrompts {
 
         Task { @MainActor in
             await waitForMainWindow()
-            await presentTipsIfNeeded()
-            if let offer = await fetch.value {
-                await presentUpdateIfNeeded(offer)
-            }
+            let offer = await fetch.value
+            await presentCombinedIfNeeded(offer: offer)
         }
     }
 
@@ -56,28 +54,10 @@ enum LaunchPrompts {
         }
     }
 
-    @MainActor
-    private static func presentTipsIfNeeded() async {
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: PreferenceKey.launchTipsDontShowAgain) else { return }
-
-        let lang = LanguageManager.shared
-        let alert = NSAlert()
-        alert.alertStyle = .informational
-        alert.messageText = lang.t(.tipsTitle)
-        alert.informativeText = lang.t(.tipsMessage)
-        alert.addButton(withTitle: lang.t(.tipsGotIt))
-        alert.addButton(withTitle: lang.t(.tipsDontShowAgain))
-
-        let response = await runAlert(alert)
-        if response == .alertSecondButtonReturn {
-            defaults.set(true, forKey: PreferenceKey.launchTipsDontShowAgain)
-        }
-    }
-
     private struct PendingUpdate: Sendable {
         let release: VersionFeed.MacOSRelease
-        let rankedURLs: Task<[URL], Never>
+        let rankedAssets: Task<[URL], Never>
+        let rankedOpenURLs: Task<[URL], Never>
     }
 
     private static func fetchNewerMacRelease() async -> PendingUpdate? {
@@ -109,52 +89,108 @@ enum LaunchPrompts {
                 return nil
             }
             let links = feed.macos.download
-            let rankedURLs = Task.detached(priority: .utility) {
+            let rankedAssets = Task.detached(priority: .utility) {
+                await DownloadMirror.rankedAssetURLs(links)
+            }
+            let rankedOpenURLs = Task.detached(priority: .utility) {
                 await DownloadMirror.rankedOpenURLs(links)
             }
-            return PendingUpdate(release: feed.macos, rankedURLs: rankedURLs)
+            return PendingUpdate(
+                release: feed.macos,
+                rankedAssets: rankedAssets,
+                rankedOpenURLs: rankedOpenURLs
+            )
         } catch {
             return nil
         }
     }
 
     @MainActor
-    private static func presentUpdateIfNeeded(_ offer: PendingUpdate) async {
+    private static func presentCombinedIfNeeded(offer: PendingUpdate?) async {
         let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: PreferenceKey.updateCheckDontAskAgain) else { return }
+        let showTips = !defaults.bool(forKey: PreferenceKey.launchTipsDontShowAgain)
+        let showUpdate = offer != nil
+            && !defaults.bool(forKey: PreferenceKey.updateCheckDontAskAgain)
 
-        let release = offer.release
+        guard showTips || showUpdate else { return }
+
         let lang = LanguageManager.shared
-        let notes: String
-        switch lang.resolved {
-        case .chineseSimplified:
-            notes = release.notes?.zh?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        case .english:
-            notes = release.notes?.en?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        }
-
-        var body = lang.format(
-            .updateAvailableMessage,
-            release.version,
-            AppVersion.currentMarketing
-        )
-        if !notes.isEmpty {
-            body += "\n\n" + notes
-        }
-
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = lang.t(.updateAvailableTitle)
-        alert.informativeText = body
-        alert.addButton(withTitle: lang.t(.updateNow))
-        alert.addButton(withTitle: lang.t(.updateLater))
-        alert.addButton(withTitle: lang.t(.updateDontAsk))
+
+        var bodyParts: [String] = []
+        if showTips {
+            bodyParts.append(lang.t(.tipsMessage))
+        }
+        if showUpdate, let offer {
+            let notes: String
+            switch lang.resolved {
+            case .chineseSimplified:
+                notes = offer.release.notes?.zh?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            case .english:
+                notes = offer.release.notes?.en?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            }
+            var updateBody = lang.format(
+                .updateAvailableMessage,
+                offer.release.version,
+                AppVersion.currentMarketing
+            )
+            if !notes.isEmpty {
+                updateBody += "\n\n" + notes
+            }
+            bodyParts.append(updateBody)
+        }
+
+        if showTips && showUpdate {
+            alert.messageText = lang.t(.launchCombinedTitle)
+        } else if showUpdate {
+            alert.messageText = lang.t(.updateAvailableTitle)
+        } else {
+            alert.messageText = lang.t(.tipsTitle)
+        }
+        alert.informativeText = bodyParts.joined(separator: "\n\n————\n\n")
+
+        // 「不再提示」checkbox when tips are part of this dialog.
+        var dontShowTipsButton: NSButton?
+        if showTips {
+            let check = NSButton(
+                checkboxWithTitle: lang.t(.tipsDontShowAgain),
+                target: nil,
+                action: nil
+            )
+            check.state = .off
+            alert.accessoryView = check
+            dontShowTipsButton = check
+        }
+
+        if showUpdate {
+            alert.addButton(withTitle: lang.t(.updateNow))
+            alert.addButton(withTitle: lang.t(.updateLater))
+            alert.addButton(withTitle: lang.t(.updateDontAsk))
+        } else {
+            alert.addButton(withTitle: lang.t(.tipsGotIt))
+        }
 
         let response = await runAlert(alert)
+
+        if let check = dontShowTipsButton, check.state == .on {
+            defaults.set(true, forKey: PreferenceKey.launchTipsDontShowAgain)
+        }
+
+        guard showUpdate, let offer else { return }
+
         switch response {
         case .alertFirstButtonReturn:
-            let urls = await offer.rankedURLs.value
-            openDownloadFallback(urls)
+            let assets = await offer.rankedAssets.value
+            let openURLs = await offer.rankedOpenURLs.value
+            if assets.isEmpty {
+                openDownloadFallback(openURLs)
+            } else {
+                await InPlaceUpdater.updateReplacingRunningApp(
+                    assetURLs: assets,
+                    fallbackOpenURLs: openURLs
+                )
+            }
         case .alertThirdButtonReturn:
             defaults.set(true, forKey: PreferenceKey.updateCheckDontAskAgain)
         default:

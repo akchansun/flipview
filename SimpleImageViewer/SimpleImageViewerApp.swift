@@ -115,7 +115,7 @@ private func showAboutPanel() {
     NSApp.orderFrontStandardAboutPanel(options: [
         .applicationName: "Flip",
         .credits: credits,
-        .version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.3.0"
+        .version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.0"
     ])
 }
 

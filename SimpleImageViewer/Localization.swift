@@ -121,6 +121,14 @@ enum L10n {
         case updateNow
         case updateLater
         case updateDontAsk
+        case launchCombinedTitle
+        case updateDownloadingTitle
+        case updateDownloadingMessage
+        case updateFailedTitle
+        case updateFailedMessage
+        case updateNotWritableTitle
+        case updateNotWritableMessage
+        case updateOpenDownload
     }
 
     static func string(_ key: Key, language: ResolvedLanguage) -> String {
@@ -191,7 +199,15 @@ enum L10n {
         .updateAvailableMessage: "Flip %@ is available. You have %@.",
         .updateNow: "Update",
         .updateLater: "Later",
-        .updateDontAsk: "Don't Update"
+        .updateDontAsk: "Don't Update",
+        .launchCombinedTitle: "Welcome",
+        .updateDownloadingTitle: "Updating Flip…",
+        .updateDownloadingMessage: "Downloading and installing the update. Flip will relaunch when finished.",
+        .updateFailedTitle: "Update Failed",
+        .updateFailedMessage: "Flip could not update itself in place. You can open the download page instead.",
+        .updateNotWritableTitle: "Cannot Update Here",
+        .updateNotWritableMessage: "This Flip.app is not writable (for example, it may be in a read-only location). Open the download instead and replace the app manually.",
+        .updateOpenDownload: "Open Download"
     ]
 
     private static let zh: [Key: String] = [
@@ -253,6 +269,14 @@ enum L10n {
         .updateAvailableMessage: "Flip %@ 已发布（当前 %@）。",
         .updateNow: "前往更新",
         .updateLater: "稍后再说",
-        .updateDontAsk: "不更新"
+        .updateDontAsk: "不更新",
+        .launchCombinedTitle: "欢迎使用 Flip",
+        .updateDownloadingTitle: "正在更新 Flip…",
+        .updateDownloadingMessage: "正在下载并安装更新，完成后将自动重新打开。",
+        .updateFailedTitle: "更新失败",
+        .updateFailedMessage: "无法在原位置更新 Flip.app。可改为打开下载链接，手动替换应用。",
+        .updateNotWritableTitle: "无法就地更新",
+        .updateNotWritableMessage: "当前 Flip.app 不可写（例如位于只读位置）。请打开下载链接并手动替换应用。",
+        .updateOpenDownload: "打开下载"
     ]
 }

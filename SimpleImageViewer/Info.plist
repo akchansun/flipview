@@ -72,9 +72,9 @@
 	<key>NSSupportsSuddenTermination</key>
 	<true/>
 	<key>CFBundleShortVersionString</key>
-	<string>0.3.0</string>
+	<string>0.4.0</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 喜相逢科技 (www.ak129.cn). MIT License.</string>
 </dict>

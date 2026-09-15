@@ -30,6 +30,32 @@ enum DownloadMirror {
             || httpURL(links.site) != nil
     }
 
+    /// Only direct zip assets, ordered by race winner then loser (no release pages / site).
+    static func rankedAssetURLs(_ links: VersionFeed.MacOSRelease.Download?) async -> [URL] {
+        guard let links else { return [] }
+        let giteeAsset = httpURL(links.giteeAsset)
+        let githubAsset = httpURL(links.githubAsset)
+        guard giteeAsset != nil || githubAsset != nil else { return [] }
+        let winner = await race(gitee: giteeAsset, github: githubAsset)
+        var result: [URL] = []
+        func add(_ url: URL?) {
+            guard let url, !result.contains(url) else { return }
+            result.append(url)
+        }
+        switch winner {
+        case .gitee:
+            add(giteeAsset)
+            add(githubAsset)
+        case .github:
+            add(githubAsset)
+            add(giteeAsset)
+        case nil:
+            add(giteeAsset)
+            add(githubAsset)
+        }
+        return result
+    }
+
     static func rankedOpenURLs(_ links: VersionFeed.MacOSRelease.Download?) async -> [URL] {
         guard let links else { return [] }
         let giteeAsset = httpURL(links.giteeAsset)
