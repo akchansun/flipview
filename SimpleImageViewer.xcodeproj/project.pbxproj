@@ -14,6 +14,8 @@
 		C0DE00000000000000002005 /* FolderAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000001005 /* FolderAccess.swift */; };
 		C0DE00000000000000002006 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000001006 /* ZoomableImageView.swift */; };
 		C0DE0000000000000000200A /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100A /* Localization.swift */; };
+		C0DE0000000000000000200B /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100B /* AppVersion.swift */; };
+		C0DE0000000000000000200C /* LaunchPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE0000000000000000100C /* LaunchPrompts.swift */; };
 		C0DE00000000000000002007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0DE00000000000000001009 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -26,6 +28,8 @@
 		C0DE00000000000000001005 /* FolderAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAccess.swift; sourceTree = "<group>"; };
 		C0DE00000000000000001006 /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		C0DE0000000000000000100A /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		C0DE0000000000000000100B /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
+		C0DE0000000000000000100C /* LaunchPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchPrompts.swift; sourceTree = "<group>"; };
 		C0DE00000000000000001007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0DE00000000000000001008 /* SimpleImageViewer.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SimpleImageViewer.entitlements; sourceTree = "<group>"; };
 		C0DE00000000000000001009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -68,6 +72,8 @@
 				C0DE00000000000000001005 /* FolderAccess.swift */,
 				C0DE00000000000000001006 /* ZoomableImageView.swift */,
 				C0DE0000000000000000100A /* Localization.swift */,
+				C0DE0000000000000000100B /* AppVersion.swift */,
+				C0DE0000000000000000100C /* LaunchPrompts.swift */,
 				C0DE00000000000000001009 /* Assets.xcassets */,
 				C0DE00000000000000001007 /* Info.plist */,
 				C0DE00000000000000001008 /* SimpleImageViewer.entitlements */,
@@ -151,6 +157,8 @@
 				C0DE00000000000000002005 /* FolderAccess.swift in Sources */,
 				C0DE00000000000000002006 /* ZoomableImageView.swift in Sources */,
 				C0DE0000000000000000200A /* Localization.swift in Sources */,
+				C0DE0000000000000000200B /* AppVersion.swift in Sources */,
+				C0DE0000000000000000200C /* LaunchPrompts.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -286,7 +294,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = YES;
@@ -304,7 +312,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.flipview.viewer;
 				PRODUCT_NAME = Flip;
 				ARCHS = "arm64 x86_64";
@@ -326,7 +334,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = YES;
@@ -344,7 +352,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.flipview.viewer;
 				PRODUCT_NAME = Flip;
 				ARCHS = "arm64 x86_64";
