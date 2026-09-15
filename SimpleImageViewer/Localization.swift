@@ -112,6 +112,7 @@ enum L10n {
         case aboutApp
         case aboutCredits
         case visitWebsite
+        case flipHelp
         case tipsTitle
         case tipsMessage
         case tipsGotIt
@@ -183,6 +184,7 @@ enum L10n {
         .aboutApp: "About Flip",
         .aboutCredits: "Free & open source (MIT)\nMade by Xixiangfeng Tech · Ankang\nwww.ak129.cn",
         .visitWebsite: "Visit Flip on ak129.cn",
+        .flipHelp: "Flip Help",
         .tipsTitle: "Tips",
         .tipsMessage: """
         After you open an image, browse others in the same folder:
@@ -253,6 +255,7 @@ enum L10n {
         .aboutApp: "关于 Flip",
         .aboutCredits: "免费开源（MIT）\n安康喜相逢科技制作\nwww.ak129.cn",
         .visitWebsite: "访问 Flip 产品页",
+        .flipHelp: "Flip 帮助",
         .tipsTitle: "使用提示",
         .tipsMessage: """
         打开一张图片后，可浏览同一文件夹中的其他图片：

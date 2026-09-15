@@ -21,6 +21,7 @@ Flip 是一款免费开源的 macOS 看图工具，用法接近经典 Windows �
 - 小图 100%、大图等比缩小适应窗口并居中
 - 右键：打开文件夹、访达中显示、用其他 App 打开
 - 界面中英可切换
+- 帮助菜单「Flip 帮助」显示与启动相同的使用提示，并可打开产品页（不使用系统 Help Book）
 - 启动时合并显示使用提示与更新（可勾选「不再提示」永久关闭提示；「不更新」仅关闭本次）；「前往更新」就地替换当前 Flip.app
 - 常见格式（JPEG / PNG / HEIC / WebP / TIFF…，走系统 ImageIO）
 
@@ -54,6 +55,8 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
 - 仅提示：文案 + 「知道了」；勾选「不再提示」后不再显示提示
 - 仅更新 / 提示+更新：发行说明 + 「前往更新」/「稍后再说」/「不更新」；提示出现时可用勾选「不再提示」
 
+勾选「不再提示」后，仍可通过菜单 **帮助 → Flip 帮助**（或 ⌘?）再次查看同一段提示，并可打开产品页。
+
 联网请求 `https://www.ak129.cn/flip/version.json`（约 6 秒超时）。**前往更新**会并行探测 `giteeAsset` / `githubAsset`，下载更快的 zip，解压后**就地替换**当前 Flip.app 的 `Contents`（辅助脚本在退出后交换目录、清除 `com.apple.quarantine` 并重新打开），避免再开一份新下载的 `.app` 触发 Gatekeeper。若应用目录不可写，则改为打开下载链接并说明原因。
 
 - **稍后再说** / **不更新**：关闭对话框，下次启动再问更新
@@ -86,6 +89,7 @@ Flip is a free, open-source macOS image viewer. Open one image, then flip throug
 - Scale-down-only fit, centered
 - Context menu: open folder, Reveal in Finder, Open With
 - English / 简体中文 UI
+- Help menu shows the same usage tips as launch (plus a link to the product page); no Help Book
 - Combined launch tips + update dialog; in-place self-update (“Don’t Update” dismisses this launch only)
 - Common formats via macOS ImageIO
 
@@ -116,6 +120,8 @@ After the main window appears, Flip shows **one** dialog (tips and/or update —
 
 - Tips only: message + **OK**; check **Don’t show again** to suppress tips
 - Update only / tips+update: release notes + **Update** / **Later** / **Don’t Update**; tips include the same checkbox when shown
+
+After **Don’t show again**, the same tips remain available from **Help → Flip Help** (⌘?), which can also open the product page.
 
 Fetches `https://www.ak129.cn/flip/version.json` (~6s timeout). **Update** races `giteeAsset` / `githubAsset`, downloads the faster zip, and **in-place replaces** `Contents` inside the running Flip.app (helper script swaps after exit, clears `com.apple.quarantine`, relaunches) so you are not forced through Gatekeeper on a freshly downloaded `.app`. If the bundle is not writable, Flip opens the download URL with a clear alert instead.
 

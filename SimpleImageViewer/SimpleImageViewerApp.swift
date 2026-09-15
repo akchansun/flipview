@@ -22,9 +22,7 @@ struct SimpleImageViewerApp: App {
                     showAboutPanel()
                 }
                 Button(language.t(.visitWebsite)) {
-                    if let url = URL(string: "https://www.ak129.cn/flip/") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    openProductWebsite()
                 }
             }
 
@@ -45,6 +43,17 @@ struct SimpleImageViewerApp: App {
                     appDelegate.session.requestDelete()
                 }
                 .keyboardShortcut(.delete, modifiers: [])
+            }
+
+            CommandGroup(replacing: .help) {
+                Button(language.t(.flipHelp)) {
+                    showHelpPanel()
+                }
+                .keyboardShortcut("?", modifiers: .command)
+
+                Button(language.t(.visitWebsite)) {
+                    openProductWebsite()
+                }
             }
 
             CommandMenu(language.t(.viewMenu)) {
@@ -115,8 +124,32 @@ private func showAboutPanel() {
     NSApp.orderFrontStandardAboutPanel(options: [
         .applicationName: "Flip",
         .credits: credits,
-        .version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.2"
+        .version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? AppVersion.currentMarketing
     ])
+}
+
+@MainActor
+private func openProductWebsite() {
+    if let url = URL(string: "https://www.ak129.cn/flip/") {
+        NSWorkspace.shared.open(url)
+    }
+}
+
+/// In-app Help: same `tipsMessage` as the launch dialog (no Help Book / `.help` bundle).
+@MainActor
+private func showHelpPanel() {
+    let lang = LanguageManager.shared
+    let alert = NSAlert()
+    alert.alertStyle = .informational
+    alert.messageText = lang.t(.tipsTitle)
+    alert.informativeText = lang.t(.tipsMessage)
+    alert.addButton(withTitle: lang.t(.tipsGotIt))
+    alert.addButton(withTitle: lang.t(.visitWebsite))
+
+    NSApp.activate(ignoringOtherApps: true)
+    if alert.runModal() == .alertSecondButtonReturn {
+        openProductWebsite()
+    }
 }
 
 @MainActor

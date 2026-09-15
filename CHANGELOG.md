@@ -1,3 +1,8 @@
+## 0.4.3
+
+- Help 菜单改为应用内使用提示（文案与启动 `tipsMessage` 相同），不再弹出系统「Help isn’t available for Flip」
+- 帮助对话框与帮助菜单均可打开 https://www.ak129.cn/flip/
+
 ## 0.4.2
 
 - 「不更新」只关闭本次启动的更新对话框，下次启动仍会检查更新（不再永久跳过）
