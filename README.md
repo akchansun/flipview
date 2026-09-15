@@ -4,6 +4,7 @@
 
 Lightweight **macOS** image viewer: open one picture, flip through the same folder. Free and open source (MIT).
 
+**GitHub:** <https://github.com/akchansun/flipview>  
 **Gitee:** <https://gitee.com/akcg/flipview>  
 **Product page:** <https://www.ak129.cn/flip/>  
 **Developer:** [喜相逢科技](https://www.ak129.cn/)
@@ -42,8 +43,9 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
 
 ### 下载
 - 官网：<https://www.ak129.cn/flip/>
-- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.2.0>（`Flip-0.2.0-macos-universal.zip`）
-- 源码：<https://gitee.com/akcg/flipview>
+- GitHub Release：<https://github.com/akchansun/flipview/releases/tag/v0.2.0>（域外推荐）
+- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.2.0>
+- 源码：GitHub <https://github.com/akchansun/flipview> · Gitee <https://gitee.com/akcg/flipview>
 
 ### 关于
 Flip 由[安康喜相逢科技](https://www.ak129.cn/)维护。我们做福彩数字化、彩店积分、英语教培与本地 IT 服务。软件服务，非购彩渠道，不承诺中奖。
@@ -83,8 +85,9 @@ Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 
 ### Download
 - Website: <https://www.ak129.cn/flip/>
-- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.2.0> (`Flip-0.2.0-macos-universal.zip`)
-- Source: <https://gitee.com/akcg/flipview>
+- GitHub Release: <https://github.com/akchansun/flipview/releases/tag/v0.2.0> (recommended outside China)
+- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.2.0>
+- Source: GitHub <https://github.com/akchansun/flipview> · Gitee <https://gitee.com/akcg/flipview>
 
 ### Credits
 Maintained by [Xixiangfeng Tech (安康喜相逢科技)](https://www.ak129.cn/) — lottery-shop digital tools, points systems, English education software, and local IT in Ankang, China.
