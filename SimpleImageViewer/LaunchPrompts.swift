@@ -5,12 +5,13 @@ import Foundation
 ///
 /// Reset in Terminal (sandboxed apps may store this under the container):
 /// `defaults delete app.flipview.viewer launchTipsDontShowAgain`
-/// `defaults delete app.flipview.viewer updateCheckDontAskAgain`
+///
+/// Deprecated unused: `updateCheckDontAskAgain` was previously set by 「不更新」
+/// and permanently skipped update checks. 0.4.2+ ignores it; leftover defaults
+/// are harmless.
 enum PreferenceKey {
     /// When `true`, skip the startup tips dialog.
     static let launchTipsDontShowAgain = "launchTipsDontShowAgain"
-    /// When `true`, never prompt about updates again (「不更新」).
-    static let updateCheckDontAskAgain = "updateCheckDontAskAgain"
     /// Consume-once: skip tips on the relaunch right after an in-place update
     /// (tips were already shown in the pre-update combined dialog).
     static let skipLaunchTipsOnce = "skipLaunchTipsOnce"
@@ -64,10 +65,6 @@ enum LaunchPrompts {
     }
 
     private static func fetchNewerMacRelease() async -> PendingUpdate? {
-        if UserDefaults.standard.bool(forKey: PreferenceKey.updateCheckDontAskAgain) {
-            return nil
-        }
-
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 6
         config.timeoutIntervalForResource = 8
@@ -117,7 +114,6 @@ enum LaunchPrompts {
             showTips = false
         }
         let showUpdate = offer != nil
-            && !defaults.bool(forKey: PreferenceKey.updateCheckDontAskAgain)
 
         guard showTips || showUpdate else { return }
 
@@ -200,9 +196,8 @@ enum LaunchPrompts {
                     fallbackOpenURLs: openURLs
                 )
             }
-        case .alertThirdButtonReturn:
-            defaults.set(true, forKey: PreferenceKey.updateCheckDontAskAgain)
         default:
+            // 「稍后再说」and 「不更新」only dismiss this launch; next launch still checks.
             break
         }
     }
