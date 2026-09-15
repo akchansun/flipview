@@ -112,6 +112,15 @@ enum L10n {
         case aboutApp
         case aboutCredits
         case visitWebsite
+        case tipsTitle
+        case tipsMessage
+        case tipsGotIt
+        case tipsDontShowAgain
+        case updateAvailableTitle
+        case updateAvailableMessage
+        case updateNow
+        case updateLater
+        case updateDontAsk
     }
 
     static func string(_ key: Key, language: ResolvedLanguage) -> String {
@@ -165,7 +174,24 @@ enum L10n {
         .noAppsToOpenWith: "No Applications",
         .aboutApp: "About Flip",
         .aboutCredits: "Free & open source (MIT)\nMade by Xixiangfeng Tech · Ankang\nwww.ak129.cn",
-        .visitWebsite: "Visit Flip on ak129.cn"
+        .visitWebsite: "Visit Flip on ak129.cn",
+        .tipsTitle: "Tips",
+        .tipsMessage: """
+        After you open an image, browse others in the same folder:
+
+        • Trackpad swipe
+        • Click the left or right window edge
+        • Left / right arrow keys
+
+        Default zoom: 100% for small images; large images fit the window.
+        """,
+        .tipsGotIt: "OK",
+        .tipsDontShowAgain: "Don't show again",
+        .updateAvailableTitle: "Update Available",
+        .updateAvailableMessage: "Flip %@ is available. You have %@.",
+        .updateNow: "Update",
+        .updateLater: "Later",
+        .updateDontAsk: "Don't Update"
     ]
 
     private static let zh: [Key: String] = [
@@ -210,6 +236,23 @@ enum L10n {
         .noAppsToOpenWith: "没有可用的应用程序",
         .aboutApp: "关于 Flip",
         .aboutCredits: "免费开源（MIT）\n安康喜相逢科技制作\nwww.ak129.cn",
-        .visitWebsite: "访问 Flip 产品页"
+        .visitWebsite: "访问 Flip 产品页",
+        .tipsTitle: "使用提示",
+        .tipsMessage: """
+        打开一张图片后，可浏览同一文件夹中的其他图片：
+
+        • 触控板左右滑动
+        • 点击窗口左、右边缘
+        • 键盘 ← → 方向键
+
+        默认缩放：小图按 100% 显示，大图缩小以适应窗口。
+        """,
+        .tipsGotIt: "知道了",
+        .tipsDontShowAgain: "不再提示",
+        .updateAvailableTitle: "发现新版本",
+        .updateAvailableMessage: "Flip %@ 已发布（当前 %@）。",
+        .updateNow: "前往更新",
+        .updateLater: "稍后再说",
+        .updateDontAsk: "不更新"
     ]
 }

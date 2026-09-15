@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-09-15
+
+- Launch tips dialog (OK / Don’t show again); shown every launch until dismissed
+- Online update check against `https://www.ak129.cn/flip/version.json` (timeout ~6s, fail silent)
+- Update prompt: race `giteeAsset` vs `githubAsset`; fallback other zip → release pages → site
+- App Sandbox outgoing network client entitlement for the version feed
+
 ## 0.2.0 — 2026-09-15
 
 - Product renamed to **Flip** (repo: `flipview`)
