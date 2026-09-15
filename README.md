@@ -28,6 +28,8 @@ Flip 是一款免费开源的 macOS 看图工具，用法接近经典 Windows �
 - 建议在内置 SSD 上浏览大量照片；外置 ExFAT 受盘速限制
 
 ### 编译
+
+发布用 **Release 通用包**（`x86_64` + `arm64`），Intel 与 Apple Silicon（M 系列）均可原生运行。
 ```bash
 xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer -configuration Release
 ```
@@ -75,6 +77,9 @@ Flip is a free, open-source macOS image viewer. Open one image, then flip throug
 - Internal SSD recommended for large libraries; external ExFAT is I/O-bound
 
 ### Build
+
+Ship a **Release universal** binary (`x86_64` + `arm64`) so Intel and Apple Silicon Macs both run natively.
+
 ```bash
 xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer -configuration Release
 ```

@@ -307,6 +307,8 @@
 				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.flipview.viewer;
 				PRODUCT_NAME = Flip;
+				ARCHS = "arm64 x86_64";
+				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				SUPPORTED_PLATFORMS = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -345,6 +347,8 @@
 				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.flipview.viewer;
 				PRODUCT_NAME = Flip;
+				ARCHS = "arm64 x86_64";
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
 				SUPPORTED_PLATFORMS = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
