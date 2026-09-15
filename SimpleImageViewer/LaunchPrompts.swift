@@ -11,6 +11,9 @@ enum PreferenceKey {
     static let launchTipsDontShowAgain = "launchTipsDontShowAgain"
     /// When `true`, never prompt about updates again (「不更新」).
     static let updateCheckDontAskAgain = "updateCheckDontAskAgain"
+    /// Consume-once: skip tips on the relaunch right after an in-place update
+    /// (tips were already shown in the pre-update combined dialog).
+    static let skipLaunchTipsOnce = "skipLaunchTipsOnce"
 }
 
 /// One combined launch dialog for tips and/or updates (not two sequential NSAlerts).
@@ -108,7 +111,11 @@ enum LaunchPrompts {
     @MainActor
     private static func presentCombinedIfNeeded(offer: PendingUpdate?) async {
         let defaults = UserDefaults.standard
-        let showTips = !defaults.bool(forKey: PreferenceKey.launchTipsDontShowAgain)
+        var showTips = !defaults.bool(forKey: PreferenceKey.launchTipsDontShowAgain)
+        if defaults.bool(forKey: PreferenceKey.skipLaunchTipsOnce) {
+            defaults.set(false, forKey: PreferenceKey.skipLaunchTipsOnce)
+            showTips = false
+        }
         let showUpdate = offer != nil
             && !defaults.bool(forKey: PreferenceKey.updateCheckDontAskAgain)
 
@@ -186,6 +193,8 @@ enum LaunchPrompts {
             if assets.isEmpty {
                 openDownloadFallback(openURLs)
             } else {
+                // Tips already shown in this dialog; don't show again after relaunch.
+                defaults.set(true, forKey: PreferenceKey.skipLaunchTipsOnce)
                 await InPlaceUpdater.updateReplacingRunningApp(
                     assetURLs: assets,
                     fallbackOpenURLs: openURLs
