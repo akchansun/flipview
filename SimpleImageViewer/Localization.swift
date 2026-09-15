@@ -165,7 +165,7 @@ enum L10n {
         .noAppsToOpenWith: "No Applications",
         .aboutApp: "About Flip",
         .aboutCredits: "Free & open source (MIT)\nMade by Xixiangfeng Tech · Ankang\nwww.ak129.cn",
-        .visitWebsite: "Visit www.ak129.cn"
+        .visitWebsite: "Visit Flip on ak129.cn"
     ]
 
     private static let zh: [Key: String] = [
@@ -210,6 +210,6 @@ enum L10n {
         .noAppsToOpenWith: "没有可用的应用程序",
         .aboutApp: "关于 Flip",
         .aboutCredits: "免费开源（MIT）\n安康喜相逢科技制作\nwww.ak129.cn",
-        .visitWebsite: "访问 www.ak129.cn"
+        .visitWebsite: "访问 Flip 产品页"
     ]
 }

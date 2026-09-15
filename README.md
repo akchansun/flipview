@@ -5,7 +5,7 @@
 Lightweight **macOS** image viewer: open one picture, flip through the same folder. Free and open source (MIT).
 
 **Gitee：** <https://gitee.com/akcg/flipview>（国内访问更稳；GitHub 可作镜像）  
-**开发者 / Developer:** [喜相逢科技 · www.ak129.cn](https://www.ak129.cn)
+**开发者 / Developer:** [喜相逢科技 · www.ak129.cn](https://www.ak129.cn/flip/)
 
 > 主仓库建议放在 **Gitee**（`flipview`），GitHub 访问不便时可只维护 Gitee。
 
@@ -38,9 +38,9 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer -confi
 > 工程目录暂名 `SimpleImageViewer`（历史原因），产品名与品牌为 **Flip**。发布到 Gitee 仓库 `flipview`；若需要再镜像到 GitHub。
 
 ### 关于喜相逢科技
-Flip 由[安康喜相逢科技](https://www.ak129.cn)维护。我们做福彩数字化、彩店积分、英语教培与本地 IT 服务。软件服务，非购彩渠道，不承诺中奖。
+Flip 由[安康喜相逢科技](https://www.ak129.cn/flip/)维护。我们做福彩数字化、彩店积分、英语教培与本地 IT 服务。软件服务，非购彩渠道，不承诺中奖。
 
-- 网站：<https://www.ak129.cn>
+- 网站：<https://www.ak129.cn/flip/>
 - 电话：177 7296 8885
 
 ### 许可证
@@ -86,7 +86,7 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer -confi
 Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 
 ### Credits
-Maintained by [Xixiangfeng Tech (安康喜相逢科技)](https://www.ak129.cn) — lottery-shop digital tools, points systems, English education software, and local IT in Ankang, China.
+Maintained by [Xixiangfeng Tech (安康喜相逢科技)](https://www.ak129.cn/flip/) — lottery-shop digital tools, points systems, English education software, and local IT in Ankang, China.
 
 ### License
 MIT — see [LICENSE](LICENSE).

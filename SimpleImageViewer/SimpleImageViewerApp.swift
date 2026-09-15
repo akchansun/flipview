@@ -22,7 +22,7 @@ struct SimpleImageViewerApp: App {
                     showAboutPanel()
                 }
                 Button(language.t(.visitWebsite)) {
-                    if let url = URL(string: "https://www.ak129.cn") {
+                    if let url = URL(string: "https://www.ak129.cn/flip/") {
                         NSWorkspace.shared.open(url)
                     }
                 }
@@ -105,10 +105,10 @@ struct SimpleImageViewerApp: App {
 private func showAboutPanel() {
     let lang = LanguageManager.shared
     let credits = NSMutableAttributedString(string: lang.t(.aboutCredits) + "\n")
-    let linkText = "https://www.ak129.cn"
+    let linkText = "https://www.ak129.cn/flip/"
     let link = NSMutableAttributedString(string: linkText)
     let fullRange = NSRange(location: 0, length: link.length)
-    link.addAttribute(.link, value: "https://www.ak129.cn", range: fullRange)
+    link.addAttribute(.link, value: "https://www.ak129.cn/flip/", range: fullRange)
     link.addAttribute(.foregroundColor, value: NSColor.linkColor, range: fullRange)
     credits.append(link)
 
