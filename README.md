@@ -42,6 +42,7 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
 
 ### 下载
 - 官网：<https://www.ak129.cn/flip/>
+- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.2.0>（`Flip-0.2.0-macos-universal.zip`）
 - 源码：<https://gitee.com/akcg/flipview>
 
 ### 关于
@@ -82,6 +83,7 @@ Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 
 ### Download
 - Website: <https://www.ak129.cn/flip/>
+- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.2.0> (`Flip-0.2.0-macos-universal.zip`)
 - Source: <https://gitee.com/akcg/flipview>
 
 ### Credits
