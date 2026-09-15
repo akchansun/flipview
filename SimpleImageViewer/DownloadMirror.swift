@@ -1,9 +1,9 @@
 import Foundation
 
-/// Picks the faster public forge (Gitee vs GitHub) by racing a short header probe.
+/// Picks the faster public forge by racing `giteeAsset` vs `githubAsset`.
 ///
-/// Packages are published on both forges. China often reaches Gitee first; elsewhere GitHub
-/// is usually quicker. URLs come only from `version.json` — no hardcoded private hosts.
+/// Open order after a win: winner zip → other zip → that forge’s release page →
+/// the other page → `download.site`. URLs come only from `version.json`.
 enum DownloadMirror {
     enum Forge: Sendable {
         case gitee
@@ -30,17 +30,40 @@ enum DownloadMirror {
             || httpURL(links.site) != nil
     }
 
-    /// Open order: faster forge, the other forge, then the site URL.
     static func rankedOpenURLs(_ links: VersionFeed.MacOSRelease.Download?) async -> [URL] {
         guard let links else { return [] }
-        let gitee = forgeURLs(.gitee, links)
-        let github = forgeURLs(.github, links)
+        let giteeAsset = httpURL(links.giteeAsset)
+        let githubAsset = httpURL(links.githubAsset)
+        let giteePage = httpURL(links.gitee)
+        let githubPage = httpURL(links.github)
         let site = httpURL(links.site)
-        let winner = await race(gitee: gitee, github: github)
-        return orderedOpenURLs(winner: winner, gitee: gitee?.open, github: github?.open, site: site)
+
+        let winner: Forge?
+        if giteeAsset != nil || githubAsset != nil {
+            winner = await race(gitee: giteeAsset, github: githubAsset)
+        } else {
+            winner = await race(gitee: giteePage, github: githubPage)
+        }
+
+        return orderedOpenURLs(
+            winner: winner,
+            giteeAsset: giteeAsset,
+            githubAsset: githubAsset,
+            giteePage: giteePage,
+            githubPage: githubPage,
+            site: site
+        )
     }
 
-    static func orderedOpenURLs(winner: Forge?, gitee: URL?, github: URL?, site: URL?) -> [URL] {
+    /// Winner asset, other asset, release pages, then site.
+    static func orderedOpenURLs(
+        winner: Forge?,
+        giteeAsset: URL?,
+        githubAsset: URL?,
+        giteePage: URL?,
+        githubPage: URL?,
+        site: URL?
+    ) -> [URL] {
         var result: [URL] = []
         func add(_ url: URL?) {
             guard let url, !result.contains(url) else { return }
@@ -48,14 +71,20 @@ enum DownloadMirror {
         }
         switch winner {
         case .gitee:
-            add(gitee)
-            add(github)
+            add(giteeAsset)
+            add(githubAsset)
+            add(giteePage)
+            add(githubPage)
         case .github:
-            add(github)
-            add(gitee)
+            add(githubAsset)
+            add(giteeAsset)
+            add(githubPage)
+            add(giteePage)
         case nil:
-            add(gitee)
-            add(github)
+            add(giteeAsset)
+            add(githubAsset)
+            add(giteePage)
+            add(githubPage)
         }
         add(site)
         return result
@@ -70,41 +99,16 @@ enum DownloadMirror {
         return url
     }
 
-    private struct ForgeURLs {
-        let probe: URL
-        let open: URL
-    }
-
-    private static func forgeURLs(_ forge: Forge, _ links: VersionFeed.MacOSRelease.Download) -> ForgeURLs? {
-        let page: URL?
-        let asset: URL?
-        switch forge {
-        case .gitee:
-            page = httpURL(links.gitee)
-            asset = httpURL(links.giteeAsset)
-        case .github:
-            page = httpURL(links.github)
-            asset = httpURL(links.githubAsset)
-        }
-        if let asset {
-            return ForgeURLs(probe: asset, open: asset)
-        }
-        if let page {
-            return ForgeURLs(probe: page, open: page)
-        }
-        return nil
-    }
-
-    private static func race(gitee: ForgeURLs?, github: ForgeURLs?) async -> Forge? {
+    private static func race(gitee: URL?, github: URL?) async -> Forge? {
         switch (gitee, github) {
         case (nil, nil):
             return nil
         case (let gitee?, nil):
-            return await probe(gitee.probe) ? .gitee : nil
+            return await probe(gitee) ? .gitee : nil
         case (nil, let github?):
-            return await probe(github.probe) ? .github : nil
+            return await probe(github) ? .github : nil
         case (let gitee?, let github?):
-            return await firstSuccess([(.gitee, gitee.probe), (.github, github.probe)])
+            return await firstSuccess([(.gitee, gitee), (.github, github)])
         }
     }
 
@@ -125,14 +129,23 @@ enum DownloadMirror {
         }
     }
 
-    /// HEAD-equivalent: Range GET, stop after headers so the zip is not downloaded.
+    /// HEAD first (cheap); Range GET if HEAD is missing or rejected. Stops after headers.
     static func probe(_ url: URL) async -> Bool {
         if Task.isCancelled { return false }
+        if await ping(url, method: "HEAD", range: false) { return true }
+        if Task.isCancelled { return false }
+        return await ping(url, method: "GET", range: true)
+    }
+
+    private static func ping(_ url: URL, method: String, range: Bool) async -> Bool {
+        if Task.isCancelled { return false }
         var request = URLRequest(url: url, timeoutInterval: probeTimeout)
-        request.httpMethod = "GET"
+        request.httpMethod = method
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
         request.setValue("Flip/\(AppVersion.currentMarketing) (macOS)", forHTTPHeaderField: "User-Agent")
+        if range {
+            request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
+        }
         do {
             let (bytes, response) = try await session.bytes(for: request)
             bytes.task.cancel()

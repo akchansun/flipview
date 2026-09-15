@@ -162,7 +162,7 @@ enum LaunchPrompts {
         }
     }
 
-    /// Winner first, other forge next, site last. `NSWorkspace.open` false → try the next URL.
+    /// Winner zip, other zip, then pages, then site. `NSWorkspace.open` false → next URL.
     @MainActor
     private static func openDownloadFallback(_ urls: [URL]) {
         for url in urls {

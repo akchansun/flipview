@@ -68,7 +68,9 @@ struct VersionFeed: Decodable, Sendable {
             let site: String?
             let gitee: String?
             let github: String?
+            /// Direct zip, raced against `githubAsset`.
             let giteeAsset: String?
+            /// Direct zip, raced against `giteeAsset`.
             let githubAsset: String?
         }
     }

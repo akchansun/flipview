@@ -51,7 +51,7 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
 ### 启动提示与更新检查
 每次启动，主窗口出现后会先显示简短使用提示。点「知道了」下次仍会显示；点「不再提示」后不再弹出。随后在后台请求官网 `https://www.ak129.cn/flip/version.json`（约 6 秒超时）。若远程 macOS 版本更新，会提示发行说明，并可：
 
-- **前往更新**：在 Gitee 与 GitHub 之间做短超时竞速（优先探测安装包地址 `giteeAsset` / `githubAsset`），打开更快的源；若打开失败再试另一侧，最后才用官网 `download.site`
+- **前往更新**：并行探测 `giteeAsset` / `githubAsset`（HEAD，不行再 Range GET），打开更快的安装包；失败则另一侧安装包 → Gitee/GitHub 发布页 → 官网 `download.site`
 - **稍后再说**：关闭对话框，下次启动再问
 - **不更新**：记住选择，不再检查或提示
 
@@ -112,7 +112,7 @@ Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 ### Launch tips and updates
 After the main window appears, Flip shows short usage tips. **OK** keeps showing them next launch; **Don’t show again** persists via UserDefaults. It then fetches `https://www.ak129.cn/flip/version.json` (about 6s timeout). If the `macos.version` is newer, a dialog offers:
 
-- **Update** — race Gitee vs GitHub with a short timeout (prefer `giteeAsset` / `githubAsset` package URLs) and open the faster source; if that open fails, try the other forge, then the site `download.site`
+- **Update** — race `giteeAsset` / `githubAsset` in parallel (HEAD, then Range GET) and open the faster zip; if that open fails: the other zip → Gitee/GitHub release pages → site `download.site`
 - **Later** — dismiss only; ask again next launch
 - **Don’t Update** — persist and never prompt updates again
 
