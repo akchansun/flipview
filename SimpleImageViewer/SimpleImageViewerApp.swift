@@ -24,6 +24,10 @@ struct SimpleImageViewerApp: App {
                 Button(language.t(.visitWebsite)) {
                     openProductWebsite()
                 }
+                Divider()
+                Button(language.t(.setDefaultMenu)) {
+                    Task { await DefaultImageApp.confirmAndApply() }
+                }
             }
 
             CommandGroup(replacing: .newItem) {

@@ -1,3 +1,8 @@
+## 0.4.4
+
+- 图片类型 `LSHandlerRank` 改为 Default，便于系统把 Flip 当作首选看图软件
+- 应用菜单新增「设为默认看图软件」：一次登记 JPEG / PNG / HEIC 等常见格式（访达「全部更改」每次只改一种）
+
 ## 0.4.3
 
 - Help 菜单改为应用内使用提示（文案与启动 `tipsMessage` 相同），不再弹出系统「Help isn’t available for Flip」
