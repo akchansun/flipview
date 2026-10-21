@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package Flip.app
+        run: bash scripts/package_macos.sh
+
+      - name: Write release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cat > release-notes.md <<EOF
+          ## 新功能
+          - 菜单「Flip → 设为默认看图软件」一次登记 JPEG / PNG / HEIC 等常见格式
+          - 图片类型改为系统首选（不再是备选），访达「全部更改」更容易生效
+
+          ## What’s new
+          - **Flip → Set as Default Image Viewer** registers common image types
+          - Image document types are now \`Default\` (no longer \`Alternate\`)
+
+          ## Notes
+          - Universal Intel + Apple Silicon
+          EOF
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Flip ${VERSION}" \
+            --notes-file release-notes.md \
+            "Flip-${VERSION}-macos-universal.zip"
