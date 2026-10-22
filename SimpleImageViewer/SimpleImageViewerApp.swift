@@ -162,6 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = false
+        ViewerWindow.bringToFrontSoon()
         LaunchPrompts.start()
     }
 
@@ -174,9 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            NSApp.windows.first?.makeKeyAndOrderFront(nil)
-        }
+        ViewerWindow.bringToFrontSoon()
         return true
     }
 
@@ -184,5 +183,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
         session.open(url)
+        ViewerWindow.bringToFrontSoon()
+    }
+}
+
+/// Finder often stays frontmost after “Open With” / double-click; activate Flip explicitly.
+@MainActor
+enum ViewerWindow {
+    static func bringToFront() {
+        NSApp.activate(ignoringOtherApps: true)
+        guard let window = mainWindow() else { return }
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// Cold document-open can run before SwiftUI has attached the WindowGroup.
+    static func bringToFrontSoon() {
+        bringToFront()
+        DispatchQueue.main.async {
+            bringToFront()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            bringToFront()
+        }
+    }
+
+    static func mainWindow() -> NSWindow? {
+        NSApp.keyWindow
+            ?? NSApp.mainWindow
+            ?? NSApp.windows.first { $0.isVisible && !$0.isSheet && $0.canBecomeKey }
+            ?? NSApp.windows.first { !$0.isSheet && $0.canBecomeKey }
     }
 }
