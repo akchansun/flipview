@@ -22,7 +22,8 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           ## 修复
-          - 访达双击打开后窗口到最前：现有窗口认领打开事件（不再用 matching: [] 挡住场景激活）
+          - 访达双击打开后窗口到最前（现有窗口认领打开事件）
+          - 打开不再绕 Launch Services 拉起自己（0.4.7 会变慢，偶发关了又打开）
 
           ## 新功能
           - 菜单「Flip → 设为默认看图软件」一次登记 JPEG / PNG / HEIC 等常见格式

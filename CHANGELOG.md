@@ -1,3 +1,8 @@
+## 0.4.8
+
+- 打开变慢、关掉后又自己打开：去掉每次打开都 `openApplication` 自己（会绕 Launch Services，关闭后延迟回调还会把 Flip 拉起来）
+- 单窗口改为 `Window`，避免 WindowGroup 关了再新建一个
+
 ## 0.4.7
 
 - 根因：`handlesExternalEvents(matching: [])` 让窗口场景拒绝访达打开事件，系统不把 Flip 切到前台；后台再 `activate` 会被忽略

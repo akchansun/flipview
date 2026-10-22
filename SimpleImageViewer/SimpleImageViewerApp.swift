@@ -7,14 +7,15 @@ struct SimpleImageViewerApp: App {
     @ObservedObject private var language = LanguageManager.shared
 
     var body: some Scene {
-        WindowGroup {
+        // Single `Window` (not WindowGroup): closing must not spawn a replacement.
+        Window(language.t(.appName), id: "main") {
             ContentView()
                 .environmentObject(appDelegate.session)
                 .environmentObject(language)
                 .id(language.preference)
-                // Claim Finder “Open With” / double-click on this window so SwiftUI
-                // activates the existing scene (matching: [] used to block that,
-                // which left Flip behind Finder; in-process activate() is ignored).
+                // Claim Finder open on this window so the scene activates (system
+                // path). Do not call openApplication on ourselves — that is slow
+                // and can relaunch Flip after Quit.
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         }
         .defaultSize(width: 1100, height: 740)
@@ -169,7 +170,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        ViewerWindow.cancelPending()
         true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        ViewerWindow.cancelPending()
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
@@ -186,79 +192,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let url = urls.first else { return }
         session.open(url)
         ViewerWindow.requestFront()
-        ViewerWindow.closeDuplicateWindows()
     }
 }
 
-/// Bring the single viewer window forward after Finder delivers a file.
-///
-/// Root cause: `.handlesExternalEvents(matching: [])` made the WindowGroup refuse
-/// the open-document event. AppDelegate still loaded the image, but the system
-/// never transferred activation. `NSApp.activate()` from a background app is
-/// ignored on recent macOS, so the window stayed under Finder.
+/// Raise the existing viewer window. Never relaunch via Launch Services.
 @MainActor
 enum ViewerWindow {
-    private static var pendingFront = false
+    private static var cancelled = false
+
+    static func cancelPending() {
+        cancelled = true
+    }
 
     static func requestFront() {
-        pendingFront = true
+        guard !cancelled else { return }
         raiseNow()
-        DispatchQueue.main.async { raiseNow() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { raiseNow() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+        DispatchQueue.main.async {
+            guard !cancelled else { return }
             raiseNow()
-            pendingFront = false
         }
     }
 
-    /// Called when the SwiftUI window is known (title / frame attach).
     static func fulfillPendingIfNeeded() {
-        guard pendingFront else { return }
+        guard !cancelled else { return }
         raiseNow()
     }
 
     static func raiseNow() {
-        guard pendingFront else { return }
-        activateViaLaunchServices()
-        NSApp.unhide(nil)
+        guard !cancelled else { return }
+        NSApp.activate()
         guard let window = mainWindow() else { return }
         if window.isMiniaturized {
             window.deminiaturize(nil)
         }
-        window.collectionBehavior.insert(.moveToActiveSpace)
         window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
-        if window.frameAutosaveName == "Flip.Main" {
-            pendingFront = false
-        }
-    }
-
-    /// In-process `activate()` is treated as focus-stealing. Asking Launch Services
-    /// to open our own bundle with `activates: true` is the same path as a Dock click.
-    private static func activateViaLaunchServices() {
-        let config = NSWorkspace.OpenConfiguration()
-        config.activates = true
-        config.addsToRecentItems = false
-        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config, completionHandler: nil)
-        if let front = NSWorkspace.shared.frontmostApplication,
-           front.bundleIdentifier != NSRunningApplication.current.bundleIdentifier {
-            NSRunningApplication.current.activate(from: front)
-        } else {
-            NSApp.activate()
-        }
-    }
-
-    static func closeDuplicateWindows() {
-        DispatchQueue.main.async {
-            let windows = NSApp.windows.filter { !$0.isSheet && $0.canBecomeKey && $0.frame.width > 100 && $0.isVisible }
-            guard windows.count > 1 else { return }
-            let keep = windows.first(where: { $0.frameAutosaveName == "Flip.Main" })
-                ?? NSApp.keyWindow
-                ?? windows.last
-            for window in windows where window !== keep {
-                window.close()
-            }
-        }
     }
 
     static func mainWindow() -> NSWindow? {
