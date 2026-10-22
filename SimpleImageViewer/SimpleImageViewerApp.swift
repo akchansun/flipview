@@ -162,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = false
-        ViewerWindow.bringToFrontSoon()
+        ViewerWindow.requestFront()
         LaunchPrompts.start()
     }
 
@@ -175,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        ViewerWindow.bringToFrontSoon()
+        ViewerWindow.requestFront()
         return true
     }
 
@@ -183,37 +183,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let url = urls.first else { return }
         session.open(url)
-        ViewerWindow.bringToFrontSoon()
+        ViewerWindow.requestFront()
     }
 }
 
-/// Finder often stays frontmost after “Open With” / double-click; activate Flip explicitly.
+/// Finder stays frontmost after Open With / double-click. `activate(ignoringOtherApps:)`
+/// is ignored on recent macOS; activate *from* Finder and force the window up.
 @MainActor
 enum ViewerWindow {
-    static func bringToFront() {
-        NSApp.activate(ignoringOtherApps: true)
+    private static var pendingFront = false
+
+    static func requestFront() {
+        pendingFront = true
+        raiseNow()
+        DispatchQueue.main.async { raiseNow() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { raiseNow() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            raiseNow()
+            pendingFront = false
+        }
+    }
+
+    /// Called when the SwiftUI window is known (title / frame attach).
+    static func fulfillPendingIfNeeded() {
+        guard pendingFront else { return }
+        raiseNow()
+    }
+
+    static func raiseNow() {
+        guard pendingFront else { return }
+        activateFromFrontmost()
+        NSApp.unhide(nil)
         guard let window = mainWindow() else { return }
         if window.isMiniaturized {
             window.deminiaturize(nil)
         }
+        window.collectionBehavior.insert(.moveToActiveSpace)
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+        if window.frameAutosaveName == "Flip.Main" {
+            pendingFront = false
+        }
     }
 
-    /// Cold document-open can run before SwiftUI has attached the WindowGroup.
-    static func bringToFrontSoon() {
-        bringToFront()
-        DispatchQueue.main.async {
-            bringToFront()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            bringToFront()
+    private static func activateFromFrontmost() {
+        let current = NSRunningApplication.current
+        if let front = NSWorkspace.shared.frontmostApplication,
+           front.bundleIdentifier != current.bundleIdentifier {
+            current.activate(from: front)
+        } else {
+            NSApp.activate()
         }
     }
 
     static func mainWindow() -> NSWindow? {
-        NSApp.keyWindow
-            ?? NSApp.mainWindow
-            ?? NSApp.windows.first { $0.isVisible && !$0.isSheet && $0.canBecomeKey }
-            ?? NSApp.windows.first { !$0.isSheet && $0.canBecomeKey }
+        let candidates = NSApp.windows.filter { !$0.isSheet && $0.canBecomeKey && $0.frame.width > 100 }
+        if let named = candidates.first(where: { $0.frameAutosaveName == "Flip.Main" }) {
+            return named
+        }
+        return candidates.first(where: \.isVisible) ?? candidates.first
     }
 }
