@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         ViewerWindow.cancelPending()
-        true
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
