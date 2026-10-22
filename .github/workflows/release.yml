@@ -21,11 +21,15 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
+          ## 修复
+          - 从访达双击 /「打开方式」打开图片后，Flip 窗口提到最前，不再留在访达下面
+
           ## 新功能
           - 菜单「Flip → 设为默认看图软件」一次登记 JPEG / PNG / HEIC 等常见格式
           - 图片类型改为系统首选（不再是备选），访达「全部更改」更容易生效
 
           ## What’s new
+          - Bring Flip in front of Finder after Open With / double-click
           - **Flip → Set as Default Image Viewer** registers common image types
           - Image document types are now \`Default\` (no longer \`Alternate\`)
 
