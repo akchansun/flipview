@@ -210,6 +210,7 @@ private struct WindowConfigurator: NSViewRepresentable {
             window.title = title
             window.setFrameAutosaveName("Flip.Main")
             window.isRestorable = true
+            ViewerWindow.fulfillPendingIfNeeded()
         }
     }
 }

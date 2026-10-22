@@ -78,7 +78,7 @@ final class ImageSession: ObservableObject {
 
     /// Opens a file (or a folder of files). Sibling discovery is non-recursive.
     func open(_ url: URL) {
-        ViewerWindow.bringToFrontSoon()
+        ViewerWindow.requestFront()
         folderAccess.retain(url)
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
