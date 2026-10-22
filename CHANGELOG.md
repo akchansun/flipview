@@ -1,3 +1,8 @@
+## 0.4.7
+
+- 根因：`handlesExternalEvents(matching: [])` 让窗口场景拒绝访达打开事件，系统不把 Flip 切到前台；后台再 `activate` 会被忽略
+- 改为现有窗口认领 `*` 外部事件，并用 Launch Services 激活自己；多余窗口会关掉
+
 ## 0.4.6
 
 - 访达双击打开后强制把主窗口提到最前（从访达接管激活，并用 `orderFrontRegardless`；0.4.5 的 `activate` 会被新系统忽略）

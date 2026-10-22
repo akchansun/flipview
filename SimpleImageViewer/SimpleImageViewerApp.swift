@@ -12,10 +12,12 @@ struct SimpleImageViewerApp: App {
                 .environmentObject(appDelegate.session)
                 .environmentObject(language)
                 .id(language.preference)
+                // Claim Finder “Open With” / double-click on this window so SwiftUI
+                // activates the existing scene (matching: [] used to block that,
+                // which left Flip behind Finder; in-process activate() is ignored).
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         }
         .defaultSize(width: 1100, height: 740)
-        // Keep a single window: Finder "Open With" is handled in AppDelegate, not a new scene.
-        .handlesExternalEvents(matching: [])
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button(language.t(.aboutApp)) {
@@ -184,11 +186,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let url = urls.first else { return }
         session.open(url)
         ViewerWindow.requestFront()
+        ViewerWindow.closeDuplicateWindows()
     }
 }
 
-/// Finder stays frontmost after Open With / double-click. `activate(ignoringOtherApps:)`
-/// is ignored on recent macOS; activate *from* Finder and force the window up.
+/// Bring the single viewer window forward after Finder delivers a file.
+///
+/// Root cause: `.handlesExternalEvents(matching: [])` made the WindowGroup refuse
+/// the open-document event. AppDelegate still loaded the image, but the system
+/// never transferred activation. `NSApp.activate()` from a background app is
+/// ignored on recent macOS, so the window stayed under Finder.
 @MainActor
 enum ViewerWindow {
     private static var pendingFront = false
@@ -212,7 +219,7 @@ enum ViewerWindow {
 
     static func raiseNow() {
         guard pendingFront else { return }
-        activateFromFrontmost()
+        activateViaLaunchServices()
         NSApp.unhide(nil)
         guard let window = mainWindow() else { return }
         if window.isMiniaturized {
@@ -226,13 +233,31 @@ enum ViewerWindow {
         }
     }
 
-    private static func activateFromFrontmost() {
-        let current = NSRunningApplication.current
+    /// In-process `activate()` is treated as focus-stealing. Asking Launch Services
+    /// to open our own bundle with `activates: true` is the same path as a Dock click.
+    private static func activateViaLaunchServices() {
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        config.addsToRecentItems = false
+        NSWorkspace.shared.openApplication(at: Bundle.main.bundleURL, configuration: config, completionHandler: nil)
         if let front = NSWorkspace.shared.frontmostApplication,
-           front.bundleIdentifier != current.bundleIdentifier {
-            current.activate(from: front)
+           front.bundleIdentifier != NSRunningApplication.current.bundleIdentifier {
+            NSRunningApplication.current.activate(from: front)
         } else {
             NSApp.activate()
+        }
+    }
+
+    static func closeDuplicateWindows() {
+        DispatchQueue.main.async {
+            let windows = NSApp.windows.filter { !$0.isSheet && $0.canBecomeKey && $0.frame.width > 100 && $0.isVisible }
+            guard windows.count > 1 else { return }
+            let keep = windows.first(where: { $0.frameAutosaveName == "Flip.Main" })
+                ?? NSApp.keyWindow
+                ?? windows.last
+            for window in windows where window !== keep {
+                window.close()
+            }
         }
     }
 
