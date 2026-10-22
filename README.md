@@ -46,8 +46,8 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
 
 ### 下载
 - 官网：<https://www.ak129.cn/flip/>
-- GitHub Release：<https://github.com/akchansun/flipview/releases/tag/v0.4.4>（域外推荐）
-- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.4.4>
+- GitHub Release：<https://github.com/akchansun/flipview/releases/tag/v0.4.5>（域外推荐）
+- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.4.5>
 - 源码：GitHub <https://github.com/akchansun/flipview> · Gitee <https://gitee.com/akcg/flipview>
 
 ### 设为默认看图软件
@@ -129,8 +129,8 @@ Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 
 ### Download
 - Website: <https://www.ak129.cn/flip/>
-- GitHub Release: <https://github.com/akchansun/flipview/releases/tag/v0.4.4> (recommended outside China)
-- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.4.4>
+- GitHub Release: <https://github.com/akchansun/flipview/releases/tag/v0.4.5> (recommended outside China)
+- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.4.5>
 - Source: GitHub <https://github.com/akchansun/flipview> · Gitee <https://gitee.com/akcg/flipview>
 
 ### Set as the default image viewer
