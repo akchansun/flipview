@@ -1,3 +1,21 @@
+## 0.4.8
+
+- 打开变慢、关掉后又自己打开：去掉每次打开都 `openApplication` 自己（会绕 Launch Services，关闭后延迟回调还会把 Flip 拉起来）
+- 单窗口改为 `Window`，避免 WindowGroup 关了再新建一个
+
+## 0.4.7
+
+- 根因：`handlesExternalEvents(matching: [])` 让窗口场景拒绝访达打开事件，系统不把 Flip 切到前台；后台再 `activate` 会被忽略
+- 改为现有窗口认领 `*` 外部事件，并用 Launch Services 激活自己；多余窗口会关掉
+
+## 0.4.6
+
+- 访达双击打开后强制把主窗口提到最前（从访达接管激活，并用 `orderFrontRegardless`；0.4.5 的 `activate` 会被新系统忽略）
+
+## 0.4.5
+
+- 从访达双击 /「打开方式」打开图片后，把 Flip 窗口提到最前（不再留在访达下面）
+
 ## 0.4.4
 
 - 图片类型 `LSHandlerRank` 改为 Default，便于系统把 Flip 当作首选看图软件
