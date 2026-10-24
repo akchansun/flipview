@@ -22,6 +22,7 @@ Flip 是一款免费开源的 macOS 看图工具，用法接近经典 Windows �
 - 右键：打开文件夹、访达中显示、用其他 App 打开
 - 界面中英可切换
 - 帮助菜单「Flip 帮助」显示与启动相同的使用提示，并可打开产品页（不使用系统 Help Book）
+- 菜单「Flip → 设为默认看图软件」一次登记常见图片格式（访达「全部更改」每次只改一种，且预览是系统首选，传统方法常常无效）
 - 启动时合并显示使用提示与更新（可勾选「不再提示」永久关闭提示；「不更新」仅关闭本次）；「前往更新」就地替换当前 Flip.app
 - 常见格式（JPEG / PNG / HEIC / WebP / TIFF…，走系统 ImageIO）
 
@@ -45,9 +46,25 @@ xcodebuild -project SimpleImageViewer.xcodeproj -scheme SimpleImageViewer \
 
 ### 下载
 - 官网：<https://www.ak129.cn/flip/>
-- GitHub Release：<https://github.com/akchansun/flipview/releases/tag/v0.4.0>（域外推荐）
-- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.4.0>
+- GitHub Release：<https://github.com/akchansun/flipview/releases/tag/v0.4.4>（域外推荐）
+- Gitee Release：<https://gitee.com/akcg/flipview/releases/tag/v0.4.4>
 - 源码：GitHub <https://github.com/akchansun/flipview> · Gitee <https://gitee.com/akcg/flipview>
+
+### 设为默认看图软件
+
+访达「显示简介 → 打开方式 → 全部更改」**每次只改当前这一种格式**（改 jpg 不会改 png / heic），而且系统把「预览」当作图片首选。Flip 0.4.3 及更早把自身声明为 `Alternate`（备选），传统方法因此常常无效。
+
+推荐：
+
+1. 把 `Flip.app` 放到 **应用程序** 文件夹，并打开一次
+2. 菜单 **Flip → 设为默认看图软件…**，系统若弹出确认请选允许
+3. 在访达双击一张 JPEG / PNG / HEIC 检查
+
+只改某一种格式时，仍可用「显示简介 → 全部更改」。若列表里没有 Flip，先打开一次 Flip，或在终端执行：
+
+```bash
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/Flip.app
+```
 
 ### 启动提示与更新检查
 主窗口出现后弹出**一个**对话框（提示与更新合并，不再连续两个弹窗）：
@@ -90,6 +107,7 @@ Flip is a free, open-source macOS image viewer. Open one image, then flip throug
 - Context menu: open folder, Reveal in Finder, Open With
 - English / 简体中文 UI
 - Help menu shows the same usage tips as launch (plus a link to the product page); no Help Book
+- **Flip → Set as Default Image Viewer** registers common image types (Finder Change All is per-type and Preview usually wins)
 - Combined launch tips + update dialog; in-place self-update (“Don’t Update” dismisses this launch only)
 - Common formats via macOS ImageIO
 
@@ -111,9 +129,25 @@ Open `SimpleImageViewer.xcodeproj` in Xcode; the app product is **Flip.app**.
 
 ### Download
 - Website: <https://www.ak129.cn/flip/>
-- GitHub Release: <https://github.com/akchansun/flipview/releases/tag/v0.4.0> (recommended outside China)
-- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.4.0>
+- GitHub Release: <https://github.com/akchansun/flipview/releases/tag/v0.4.4> (recommended outside China)
+- Gitee Release: <https://gitee.com/akcg/flipview/releases/tag/v0.4.4>
 - Source: GitHub <https://github.com/akchansun/flipview> · Gitee <https://gitee.com/akcg/flipview>
+
+### Set as the default image viewer
+
+Finder’s **Get Info → Open with → Change All** only changes **that one type** (JPEG does not include PNG or HEIC). Preview is also the system’s preferred image app. Flip 0.4.3 and earlier declared itself `Alternate`, so the usual method often failed.
+
+Recommended:
+
+1. Put `Flip.app` in **Applications** and open it once
+2. Choose **Flip → Set as Default Image Viewer…** and allow the system prompt if it appears
+3. Double-click a JPEG / PNG / HEIC in Finder to verify
+
+To change a single type, Get Info → Change All still works. If Flip is missing from the list, open Flip once, or run:
+
+```bash
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/Flip.app
+```
 
 ### Launch tips and updates
 After the main window appears, Flip shows **one** dialog (tips and/or update — never two alerts in a row):

@@ -112,6 +112,16 @@ enum L10n {
         case aboutApp
         case aboutCredits
         case visitWebsite
+        case setDefaultMenu
+        case setDefaultTitle
+        case setDefaultMessage
+        case setDefaultConfirm
+        case setDefaultSuccessTitle
+        case setDefaultSuccessMessage
+        case setDefaultPartialTitle
+        case setDefaultPartialMessage
+        case setDefaultFailedTitle
+        case setDefaultFailedMessage
         case flipHelp
         case tipsTitle
         case tipsMessage
@@ -184,6 +194,22 @@ enum L10n {
         .aboutApp: "About Flip",
         .aboutCredits: "Free & open source (MIT)\nMade by Xixiangfeng Tech · Ankang\nwww.ak129.cn",
         .visitWebsite: "Visit Flip on ak129.cn",
+        .setDefaultMenu: "Set as Default Image Viewer…",
+        .setDefaultTitle: "Use Flip to open images?",
+        .setDefaultMessage: """
+        Finder’s Get Info → Change All only changes one file type (for example JPEG, not PNG or HEIC). Preview is also the system’s preferred image app, so that method often does nothing.
+
+        Put Flip.app in the Applications folder and open it once first.
+
+        macOS may ask you to confirm. Choose Allow or Use Flip.
+        """,
+        .setDefaultConfirm: "Set as Default",
+        .setDefaultSuccessTitle: "Flip is the default",
+        .setDefaultSuccessMessage: "Double-click a JPEG, PNG, or HEIC in Finder to check. You can still open any image with Preview via Open With.",
+        .setDefaultPartialTitle: "Partly updated",
+        .setDefaultPartialMessage: "Flip is now the default for %d types. %d types were skipped (you may have declined a system prompt).",
+        .setDefaultFailedTitle: "Could not change the default",
+        .setDefaultFailedMessage: "Move Flip.app into Applications, open it once, then try again. If macOS shows a confirmation, choose Allow. Debug sandbox builds cannot change the default — use a Release Flip.app.",
         .flipHelp: "Flip Help",
         .tipsTitle: "Tips",
         .tipsMessage: """
@@ -255,6 +281,22 @@ enum L10n {
         .aboutApp: "关于 Flip",
         .aboutCredits: "免费开源（MIT）\n安康喜相逢科技制作\nwww.ak129.cn",
         .visitWebsite: "访问 Flip 产品页",
+        .setDefaultMenu: "设为默认看图软件…",
+        .setDefaultTitle: "用 Flip 打开图片？",
+        .setDefaultMessage: """
+        访达「显示简介 → 全部更改」每次只改一种格式（例如只改 jpg，不会改 png / heic）。系统又把「预览」当作图片首选，Flip 以前只能当备选，所以传统方法常常改不了。
+
+        请先把 Flip.app 放到「应用程序」文件夹，并打开一次。
+
+        系统可能会弹出确认，请选「允许」或「使用 Flip」。
+        """,
+        .setDefaultConfirm: "设为默认",
+        .setDefaultSuccessTitle: "已设为默认",
+        .setDefaultSuccessMessage: "可在访达里双击一张 JPEG、PNG 或 HEIC 试一下。仍可用「打开方式」选择预览。",
+        .setDefaultPartialTitle: "只改了一部分",
+        .setDefaultPartialMessage: "已将 %d 种格式设为用 Flip 打开；有 %d 种未成功（可能是系统确认时点了取消）。",
+        .setDefaultFailedTitle: "无法改默认应用",
+        .setDefaultFailedMessage: "请把 Flip.app 放到「应用程序」并打开一次后再试。若系统弹出确认，请点允许。调试版（沙盒）无法修改默认应用，请用正式版 Flip.app。",
         .flipHelp: "Flip 帮助",
         .tipsTitle: "使用提示",
         .tipsMessage: """
