@@ -118,8 +118,14 @@ enum ImageEditing {
         return .jpeg
     }
 
-    /// Reload the original file at full resolution, replay `ops`, write atomically.
-    static func saveFullResolution(from source: URL, ops: [ImageOp], to destination: URL, type: UTType) throws {
+    /// Reload the original file at full resolution, replay `ops` and markup, write atomically.
+    static func saveFullResolution(
+        from source: URL,
+        ops: [ImageOp],
+        markup: [MarkupItem] = [],
+        to destination: URL,
+        type: UTType
+    ) throws {
         guard let loaded = loadOrientedFullResolution(from: source),
               var cg = ImageLoader.cgImage(from: loaded) else {
             throw ImageEditError.loadFailed
@@ -127,6 +133,9 @@ enum ImageEditing {
         for op in ops {
             guard let next = apply(op, to: cg) else { throw ImageEditError.noCGImage }
             cg = next
+        }
+        if !markup.isEmpty, let baked = ImageMarkup.bake(markup, onto: cg) {
+            cg = baked
         }
         try write(cg, to: destination, type: type)
     }

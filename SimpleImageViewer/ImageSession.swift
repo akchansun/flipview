@@ -35,6 +35,9 @@ final class ImageSession: ObservableObject {
     @Published var zoomRequest: ZoomRequest?
     @Published var isDropTargeted = false
     @Published private(set) var isDirty = false
+    @Published private(set) var markupTool: MarkupTool = .browse
+    @Published var markupColor: MarkupColor = .red
+    @Published private(set) var markupItems: [MarkupItem] = []
 
     let folderAccess = FolderAccess()
     /// Display-sized decode without rotate/flip. Replay `pendingOps` from this on undo.
@@ -485,41 +488,65 @@ final class ImageSession: ObservableObject {
             sourceImage = source
         }
         pendingOps.append(op)
-        isDirty = true
+        markupItems = markupItems.map { $0.transformed(by: op) }
         currentImage = ImageEditing.apply(pendingOps, to: source)
-        markDocumentEdited(true)
-        applyWindowTitle()
+        refreshDirty()
         if op.swapsDimensions {
             requestZoom(.fit)
         }
     }
 
+    func setMarkupTool(_ tool: MarkupTool) {
+        guard hasImage || tool == .browse else { return }
+        if tool.isDrawing {
+            stopSlideshow()
+        }
+        markupTool = tool
+    }
+
+    func setMarkupColor(_ color: MarkupColor) {
+        markupColor = color
+        if markupTool == .browse, hasImage {
+            markupTool = .pen
+        }
+    }
+
+    func addMarkup(_ item: MarkupItem) {
+        stopSlideshow()
+        markupItems.append(item)
+        refreshDirty()
+    }
+
     func undoLastEdit() {
+        if !markupItems.isEmpty {
+            markupItems.removeLast()
+            refreshDirty()
+            return
+        }
         guard !pendingOps.isEmpty else { return }
         pendingOps.removeLast()
-        isDirty = !pendingOps.isEmpty
         if let source = sourceImage {
             currentImage = pendingOps.isEmpty ? source : ImageEditing.apply(pendingOps, to: source)
         }
-        markDocumentEdited(isDirty)
-        applyWindowTitle()
+        refreshDirty()
         requestZoom(.fit)
     }
 
     func revertEdits() {
         guard isDirty else { return }
         pendingOps = []
-        isDirty = false
+        markupItems = []
+        markupTool = .browse
         currentImage = sourceImage
-        markDocumentEdited(false)
-        applyWindowTitle()
+        refreshDirty()
         requestZoom(.fit)
     }
 
     func copyImage() {
         guard let image = currentImage else { return }
+        let composite = ImageMarkup.composite(image: image, items: markupItems)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.writeObjects([image])
+        NSPasteboard.general.writeObjects([composite])
     }
 
     @discardableResult
@@ -554,15 +581,19 @@ final class ImageSession: ObservableObject {
     func printCurrent() {
         guard let url = currentURL, let preview = currentImage else { return }
         let ops = pendingOps
+        let marks = markupItems
         let scoped = url.startAccessingSecurityScopedResource()
         defer {
             if scoped { url.stopAccessingSecurityScopedResource() }
         }
-        let image: NSImage
+        var image: NSImage
         if let printSource = ImageEditing.loadOriented(from: url, maxPixelSize: ImageEditing.printMaxPixelSize) {
             image = ops.isEmpty ? printSource : ImageEditing.apply(ops, to: printSource)
         } else {
             image = preview
+        }
+        if !marks.isEmpty {
+            image = ImageMarkup.composite(image: image, items: marks)
         }
         ImageEditing.printImage(image, jobTitle: url.lastPathComponent)
     }
@@ -597,6 +628,7 @@ final class ImageSession: ObservableObject {
 
     private func writeEdited(from source: URL, to destination: URL, type: UTType, reopenIfMoved: Bool) -> Bool {
         let ops = pendingOps
+        let marks = markupItems
         let scopedSource = source.startAccessingSecurityScopedResource()
         let scopedDest = destination.startAccessingSecurityScopedResource()
         defer {
@@ -604,7 +636,7 @@ final class ImageSession: ObservableObject {
             if scopedDest { destination.stopAccessingSecurityScopedResource() }
         }
         do {
-            try ImageEditing.saveFullResolution(from: source, ops: ops, to: destination, type: type)
+            try ImageEditing.saveFullResolution(from: source, ops: ops, markup: marks, to: destination, type: type)
         } catch {
             errorMessage = LanguageManager.shared.format(
                 .couldNotSaveNamed,
@@ -615,11 +647,14 @@ final class ImageSession: ObservableObject {
 
         imageCache.removeObject(forKey: cacheKey(for: source))
         imageCache.removeObject(forKey: cacheKey(for: destination))
+        if !marks.isEmpty, let img = currentImage {
+            currentImage = ImageMarkup.composite(image: img, items: marks)
+        }
         pendingOps = []
-        isDirty = false
+        markupItems = []
+        markupTool = .browse
         sourceImage = currentImage
-        markDocumentEdited(false)
-        applyWindowTitle()
+        refreshDirty()
 
         let moved = source.standardizedFileURL.path != destination.standardizedFileURL.path
         if reopenIfMoved, moved {
@@ -630,11 +665,19 @@ final class ImageSession: ObservableObject {
 
     private func clearEdits(keepingImage: Bool) {
         pendingOps = []
+        markupItems = []
+        markupTool = .browse
         isDirty = false
         if !keepingImage {
             sourceImage = nil
         }
         markDocumentEdited(false)
+    }
+
+    private func refreshDirty() {
+        isDirty = !pendingOps.isEmpty || !markupItems.isEmpty
+        markDocumentEdited(isDirty)
+        applyWindowTitle()
     }
 
     private func markDocumentEdited(_ edited: Bool) {

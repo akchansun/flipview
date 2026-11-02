@@ -127,6 +127,13 @@ enum L10n {
         case unsavedMessage
         case dontSave
         case couldNotSaveNamed
+        case toolBrowse
+        case toolPen
+        case toolArrow
+        case toolRect
+        case toolText
+        case markupColor
+        case textPlaceholder
         case noAppsToOpenWith
         case aboutApp
         case aboutCredits
@@ -224,8 +231,15 @@ enum L10n {
         .printEllipsis: "Print…",
         .editedSuffix: "(Edited)",
         .unsavedTitle: "Save changes to this image?",
-        .unsavedMessageNamed: "“%@” has unsaved rotate or flip changes.",
-        .unsavedMessage: "This image has unsaved rotate or flip changes.",
+        .unsavedMessageNamed: "“%@” has unsaved rotate, flip, or markup changes.",
+        .unsavedMessage: "This image has unsaved rotate, flip, or markup changes.",
+        .toolBrowse: "Browse",
+        .toolPen: "Draw",
+        .toolArrow: "Arrow",
+        .toolRect: "Rectangle",
+        .toolText: "Text",
+        .markupColor: "Markup color",
+        .textPlaceholder: "Type here",
         .dontSave: "Don’t Save",
         .couldNotSaveNamed: "Could not save “%@”.",
         .noAppsToOpenWith: "No Applications",
@@ -330,8 +344,15 @@ enum L10n {
         .printEllipsis: "打印…",
         .editedSuffix: "（已编辑）",
         .unsavedTitle: "存储对此图片的更改？",
-        .unsavedMessageNamed: "“%@” 有未存储的旋转或翻转。",
-        .unsavedMessage: "这张图片有未存储的旋转或翻转。",
+        .unsavedMessageNamed: "“%@” 有未存储的旋转、翻转或标注。",
+        .unsavedMessage: "这张图片有未存储的旋转、翻转或标注。",
+        .toolBrowse: "浏览",
+        .toolPen: "画笔",
+        .toolArrow: "箭头",
+        .toolRect: "矩形",
+        .toolText: "文字",
+        .markupColor: "标注颜色",
+        .textPlaceholder: "输入文字",
         .dontSave: "不存储",
         .couldNotSaveNamed: "无法存储“%@”。",
         .noAppsToOpenWith: "没有可用的应用程序",

@@ -7,6 +7,43 @@ struct ContentView: View {
     @EnvironmentObject private var language: LanguageManager
 
     var body: some View {
+        VStack(spacing: 0) {
+            ViewerToolbarBar()
+            Divider()
+            viewerBody
+        }
+        .frame(minWidth: 480, minHeight: 320)
+        .background(WindowConfigurator(title: session.windowTitle, isEdited: session.isDirty, session: session))
+        .onOpenURL { url in
+            session.open(url)
+        }
+        .onDrop(of: [.fileURL], isTargeted: $session.isDropTargeted, perform: handleDrop)
+        .alert(language.t(.moveToTrashQuestion), isPresented: $session.showDeleteConfirm) {
+            Button(language.t(.moveToTrash), role: .destructive) {
+                session.deleteCurrent()
+            }
+            Button(language.t(.cancel), role: .cancel) {}
+        } message: {
+            if let name = session.currentURL?.lastPathComponent {
+                Text(language.format(.moveToTrashMessageNamed, name))
+            } else {
+                Text(language.t(.moveToTrashMessage))
+            }
+        }
+        .alert(
+            language.t(.couldNotOpenImage),
+            isPresented: Binding(
+                get: { session.errorMessage != nil && session.currentImage != nil },
+                set: { if !$0 { session.errorMessage = nil } }
+            )
+        ) {
+            Button(language.t(.ok), role: .cancel) { session.errorMessage = nil }
+        } message: {
+            Text(session.errorMessage ?? "")
+        }
+    }
+
+    private var viewerBody: some View {
         ZStack {
             if session.currentImage != nil {
                 Color.black
@@ -36,7 +73,11 @@ struct ContentView: View {
                     onSaveAs: { session.saveAs() },
                     onPrint: { session.printCurrent() },
                     onUndoEdit: { session.undoLastEdit() },
-                    isDirty: session.isDirty
+                    isDirty: session.isDirty,
+                    markupItems: session.markupItems,
+                    markupTool: session.markupTool,
+                    markupColor: session.markupColor,
+                    onAddMarkup: { session.addMarkup($0) }
                 )
             } else {
                 EmptyStateView()
@@ -76,35 +117,6 @@ struct ContentView: View {
                 }
             }
         }
-        .frame(minWidth: 480, minHeight: 320)
-        .background(WindowConfigurator(title: session.windowTitle, isEdited: session.isDirty, session: session))
-        .onOpenURL { url in
-            session.open(url)
-        }
-        .onDrop(of: [.fileURL], isTargeted: $session.isDropTargeted, perform: handleDrop)
-        .alert(language.t(.moveToTrashQuestion), isPresented: $session.showDeleteConfirm) {
-            Button(language.t(.moveToTrash), role: .destructive) {
-                session.deleteCurrent()
-            }
-            Button(language.t(.cancel), role: .cancel) {}
-        } message: {
-            if let name = session.currentURL?.lastPathComponent {
-                Text(language.format(.moveToTrashMessageNamed, name))
-            } else {
-                Text(language.t(.moveToTrashMessage))
-            }
-        }
-        .alert(
-            language.t(.couldNotOpenImage),
-            isPresented: Binding(
-                get: { session.errorMessage != nil && session.currentImage != nil },
-                set: { if !$0 { session.errorMessage = nil } }
-            )
-        ) {
-            Button(language.t(.ok), role: .cancel) { session.errorMessage = nil }
-        } message: {
-            Text(session.errorMessage ?? "")
-        }
     }
 
     private var folderAccessBanner: some View {
@@ -124,6 +136,10 @@ struct ContentView: View {
     }
 
     private func handleEscape() {
+        if session.markupTool != .browse {
+            session.setMarkupTool(.browse)
+            return
+        }
         if session.isSlideshow {
             session.stopSlideshow()
         } else {

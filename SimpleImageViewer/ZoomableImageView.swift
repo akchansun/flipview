@@ -24,6 +24,10 @@ struct ZoomableImageView: NSViewRepresentable {
     var onPrint: () -> Void
     var onUndoEdit: () -> Void
     var isDirty: Bool = false
+    var markupItems: [MarkupItem] = []
+    var markupTool: MarkupTool = .browse
+    var markupColor: MarkupColor = .red
+    var onAddMarkup: (MarkupItem) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -45,6 +49,11 @@ struct ZoomableImageView: NSViewRepresentable {
             context.coordinator.lastZoomID = zoomRequest.id
             host.scrollView.applyZoom(zoomRequest.kind)
         }
+        host.overlay.markupItems = markupItems
+        host.overlay.markupTool = markupTool
+        host.overlay.markupColor = markupColor
+        host.overlay.needsDisplay = true
+        host.window?.invalidateCursorRects(for: host.overlay)
     }
 
     private func bind(_ host: ImageViewerHostView) {
@@ -70,9 +79,29 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.isDirty = isDirty
         host.overlay.onDelete = onDelete
         host.overlay.currentImageURL = { imageURL }
-        host.overlay.onMouseDown = { [weak host] event in host?.scrollView.handleOverlayMouseDown(event) }
-        host.overlay.onMouseDragged = { [weak host] event in host?.scrollView.handleOverlayMouseDragged(event) }
-        host.overlay.onMouseUp = { [weak host] event in host?.scrollView.handleOverlayMouseUp(event) }
+        host.overlay.onAddMarkup = onAddMarkup
+        host.overlay.imageRectInOverlay = { [weak host] in
+            guard let host else { return .zero }
+            return host.scrollView.displayedImageRect(in: host.overlay)
+        }
+        host.scrollView.onLayout = { [weak host] in
+            host?.overlay.needsDisplay = true
+        }
+        host.overlay.onMouseDown = { [weak host] event in
+            guard let host else { return }
+            if host.overlay.handleMarkupMouseDown(event) { return }
+            host.scrollView.handleOverlayMouseDown(event)
+        }
+        host.overlay.onMouseDragged = { [weak host] event in
+            guard let host else { return }
+            if host.overlay.handleMarkupMouseDragged(event) { return }
+            host.scrollView.handleOverlayMouseDragged(event)
+        }
+        host.overlay.onMouseUp = { [weak host] event in
+            guard let host else { return }
+            if host.overlay.handleMarkupMouseUp(event) { return }
+            host.scrollView.handleOverlayMouseUp(event)
+        }
         host.overlay.onScrollWheel = { [weak host] event in host?.scrollView.scrollWheel(with: event) }
         host.overlay.onMagnify = { [weak host] event in host?.scrollView.magnify(with: event) }
         host.overlay.onSwipe = { [weak host] event in host?.scrollView.swipe(with: event) }
@@ -103,6 +132,7 @@ final class ImageViewerHostView: NSView {
         addSubview(overlay)
         overlay.wantsLayer = true
         overlay.layer?.backgroundColor = NSColor.clear.cgColor
+        overlay.layerContentsRedrawPolicy = .onSetNeedsDisplay
     }
 
     required init?(coder: NSCoder) {
@@ -113,10 +143,15 @@ final class ImageViewerHostView: NSView {
         super.layout()
         scrollView.frame = bounds
         overlay.frame = bounds
+        overlay.needsDisplay = true
         window?.invalidateCursorRects(for: overlay)
     }
 
     func applyPageCursor(atWindowPoint point: NSPoint) {
+        if overlay.markupTool.isDrawing {
+            overlay.markupTool.cursor.set()
+            return
+        }
         let local = convert(point, from: nil)
         guard bounds.contains(local) else {
             NSCursor.arrow.set()
@@ -161,6 +196,23 @@ final class PageHitOverlay: NSView {
     var onMagnify: ((NSEvent) -> Void)?
     var onSwipe: ((NSEvent) -> Void)?
     var onCursorMove: ((NSPoint) -> Void)?
+    var onAddMarkup: ((MarkupItem) -> Void)?
+    var imageRectInOverlay: (() -> NSRect)?
+    var markupItems: [MarkupItem] = []
+    var markupTool: MarkupTool = .browse {
+        didSet {
+            if oldValue == .text, markupTool != .text {
+                commitTextEditor()
+            }
+            window?.invalidateCursorRects(for: self)
+            needsDisplay = true
+        }
+    }
+    var markupColor: MarkupColor = .red
+
+    private var draft: MarkupItem?
+    private var dragStartFrac: CGPoint?
+    private var textEditor: NSTextField?
 
     override var isOpaque: Bool { false }
     override var acceptsFirstResponder: Bool { false }
@@ -176,12 +228,175 @@ final class PageHitOverlay: NSView {
 
     override func resetCursorRects() {
         guard bounds.width > 0 else { return }
+        if markupTool.isDrawing {
+            addCursorRect(bounds, cursor: markupTool.cursor)
+            return
+        }
         let third = bounds.width / 3
         addCursorRect(NSRect(x: 0, y: 0, width: third, height: bounds.height), cursor: ImageScrollView.pageLeftCursor)
         addCursorRect(
             NSRect(x: bounds.width - third, y: 0, width: third, height: bounds.height),
             cursor: ImageScrollView.pageRightCursor
         )
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        var items = markupItems
+        if let draft { items.append(draft) }
+        ImageMarkup.draw(items, in: imageRectInOverlay?() ?? .zero)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let editor = textEditor, !editor.isHidden, editor.frame.contains(point) {
+            return editor.hitTest(convert(point, to: editor)) ?? editor
+        }
+        return bounds.contains(point) ? self : nil
+    }
+
+    @discardableResult
+    func handleMarkupMouseDown(_ event: NSEvent) -> Bool {
+        if markupTool == .text, textEditor != nil {
+            commitTextEditor()
+            return true
+        }
+        guard markupTool.isDrawing else { return false }
+        guard let frac = imageFraction(for: event) else { return true }
+        dragStartFrac = frac
+        switch markupTool {
+        case .browse:
+            return false
+        case .pen:
+            draft = MarkupItem(color: markupColor, kind: .stroke(points: [frac]))
+        case .arrow:
+            draft = MarkupItem(color: markupColor, kind: .arrow(start: frac, end: frac))
+        case .rect:
+            draft = MarkupItem(color: markupColor, kind: .rect(start: frac, end: frac))
+        case .text:
+            beginTextEditor(at: frac)
+            dragStartFrac = nil
+        }
+        needsDisplay = true
+        return true
+    }
+
+    @discardableResult
+    func handleMarkupMouseDragged(_ event: NSEvent) -> Bool {
+        guard markupTool.isDrawing else { return false }
+        if markupTool == .text { return true }
+        guard let start = dragStartFrac else { return true }
+        guard let frac = imageFraction(for: event) else { return true }
+        switch markupTool {
+        case .pen:
+            if var current = draft, case .stroke(var points) = current.kind {
+                points.append(frac)
+                current.kind = .stroke(points: points)
+                draft = current
+            }
+        case .arrow:
+            draft = MarkupItem(id: draft?.id ?? UUID(), color: markupColor, kind: .arrow(start: start, end: frac))
+        case .rect:
+            draft = MarkupItem(id: draft?.id ?? UUID(), color: markupColor, kind: .rect(start: start, end: frac))
+        default:
+            break
+        }
+        needsDisplay = true
+        return true
+    }
+
+    @discardableResult
+    func handleMarkupMouseUp(_ event: NSEvent) -> Bool {
+        guard markupTool.isDrawing else { return false }
+        if markupTool == .text { return true }
+        defer {
+            dragStartFrac = nil
+            draft = nil
+            needsDisplay = true
+        }
+        if let draft, isMeaningful(draft) {
+            markupItems.append(draft)
+            onAddMarkup?(draft)
+        }
+        return true
+    }
+
+    private func imageFraction(for event: NSEvent) -> CGPoint? {
+        let imageRect = imageRectInOverlay?() ?? .zero
+        guard imageRect.width > 1, imageRect.height > 1 else { return nil }
+        let local = convert(event.locationInWindow, from: nil)
+        let frac = CGPoint(
+            x: (local.x - imageRect.minX) / imageRect.width,
+            y: (local.y - imageRect.minY) / imageRect.height
+        )
+        return CGPoint(x: min(max(frac.x, 0), 1), y: min(max(frac.y, 0), 1))
+    }
+
+    private func isMeaningful(_ item: MarkupItem) -> Bool {
+        switch item.kind {
+        case .stroke(let points):
+            return points.count >= 2
+        case .arrow(let start, let end), .rect(let start, let end):
+            let dx = end.x - start.x
+            let dy = end.y - start.y
+            return (dx * dx + dy * dy) > 0.0002
+        case .text(_, let string):
+            return !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private func beginTextEditor(at frac: CGPoint) {
+        commitTextEditor()
+        let imageRect = imageRectInOverlay?() ?? .zero
+        let origin = NSPoint(
+            x: imageRect.minX + frac.x * imageRect.width,
+            y: imageRect.minY + frac.y * imageRect.height
+        )
+        let field = NSTextField(frame: NSRect(x: origin.x, y: origin.y - 4, width: 240, height: 28))
+        field.placeholderString = LanguageManager.shared.t(.textPlaceholder)
+        field.font = .systemFont(ofSize: 16, weight: .semibold)
+        field.textColor = markupColor.nsColor
+        field.backgroundColor = NSColor.black.withAlphaComponent(0.35)
+        field.drawsBackground = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.focusRingType = .none
+        field.target = self
+        field.action = #selector(textEditorEnded(_:))
+        field.delegate = self
+        field.tag = 9401
+        addSubview(field)
+        textEditor = field
+        window?.makeFirstResponder(field)
+    }
+
+    @objc private func textEditorEnded(_ sender: NSTextField) {
+        commitTextEditor()
+    }
+
+    @discardableResult
+    func commitTextEditor() -> Bool {
+        guard let field = textEditor else { return false }
+        let text = field.stringValue
+        let frame = field.frame
+        field.delegate = nil
+        field.removeFromSuperview()
+        textEditor = nil
+        let imageRect = imageRectInOverlay?() ?? .zero
+        guard imageRect.width > 1, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return true
+        }
+        let frac = CGPoint(
+            x: min(max((frame.minX - imageRect.minX) / imageRect.width, 0), 1),
+            y: min(max((frame.minY - imageRect.minY) / imageRect.height, 0), 1)
+        )
+        onAddMarkup?(MarkupItem(color: markupColor, kind: .text(origin: frac, string: text)))
+        needsDisplay = true
+        return true
+    }
+
+    func cancelTextEditor() {
+        textEditor?.delegate = nil
+        textEditor?.removeFromSuperview()
+        textEditor = nil
     }
 
     override func cursorUpdate(with event: NSEvent) {
@@ -339,6 +554,20 @@ final class PageHitOverlay: NSView {
     }
 }
 
+extension PageHitOverlay: NSTextFieldDelegate {
+    func controlTextDidEndEditing(_ obj: Notification) {
+        commitTextEditor()
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            cancelTextEditor()
+            return true
+        }
+        return false
+    }
+}
+
 final class ImageScrollView: NSScrollView {
     var representedURL: URL?
     private(set) var image: NSImage?
@@ -346,8 +575,13 @@ final class ImageScrollView: NSScrollView {
     var onNavigate: ((NavigateDirection) -> Void)?
     var onDelete: (() -> Void)?
     var onEscape: (() -> Void)?
+    var onLayout: (() -> Void)?
 
     var isFittingMode: Bool { isFitting }
+
+    func displayedImageRect(in view: NSView) -> NSRect {
+        view.convert(imageView.frame, from: canvas)
+    }
 
     private let canvas = NSView()
     private let imageView = NSImageView()
@@ -512,6 +746,7 @@ final class ImageScrollView: NSScrollView {
             contentView.setBoundsOrigin(origin)
             reflectScrolledClipView(contentView)
         }
+        onLayout?()
     }
 
     private func centerDocument() {
@@ -521,6 +756,7 @@ final class ImageScrollView: NSScrollView {
         clip.origin.y = clip.height < doc.height ? (doc.height - clip.height) / 2 : 0
         contentView.setBoundsOrigin(clip.origin)
         reflectScrolledClipView(contentView)
+        onLayout?()
     }
 
     override func wantsForwardedScrollEvents(for axis: NSEvent.GestureAxis) -> Bool { axis == .horizontal }

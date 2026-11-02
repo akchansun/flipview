@@ -22,18 +22,18 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           ## 新功能
+          - 顶部工具条：翻页、缩放、旋转翻转、画笔 / 箭头 / 矩形 / 文字标注、存储、打印
           - 向左 / 向右旋转 90°（⌘L / ⌘R）、水平 / 垂直翻转
-          - 拷贝图片、存储 / 存储为（按原图分辨率写入，不会用屏幕预览图覆盖文件）
-          - 打印（⌘P）；未保存更改时翻页、打开或退出会询问
+          - 拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）
 
           ## 修复
           - 放大以指针/手势位置为焦点，不再往左跳
-          - 访达双击打开后窗口到最前（现有窗口认领打开事件）
+          - 访达双击打开后窗口到最前
 
           ## What’s new
-          - Rotate left/right, flip horizontal/vertical
+          - Top toolbar with rotate, flip, draw, arrow, rectangle, and text markup
           - Copy, Save / Save As at full resolution, Print
-          - Prompt before discarding unsaved rotate/flip edits
+          - Zoom around the pointer; Flip comes in front of Finder on open
 
           ## Notes
           - Universal Intel + Apple Silicon

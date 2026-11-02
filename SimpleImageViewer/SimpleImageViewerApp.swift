@@ -151,6 +151,29 @@ private struct FlipViewCommands: Commands {
 
             Divider()
 
+            Button(language.t(.toolBrowse)) {
+                session.setMarkupTool(.browse)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolPen)) {
+                session.setMarkupTool(.pen)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolArrow)) {
+                session.setMarkupTool(.arrow)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolRect)) {
+                session.setMarkupTool(.rect)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolText)) {
+                session.setMarkupTool(.text)
+            }
+            .disabled(!session.hasImage)
+
+            Divider()
+
             Button(language.t(.revertEdits)) {
                 session.revertEdits()
             }
