@@ -30,6 +30,17 @@ private struct FlipCommands: Commands {
     @ObservedObject var language: LanguageManager
 
     var body: some Commands {
+        // CommandsBuilder only accepts 10 children; split file vs view menus.
+        FlipFileCommands(session: session, language: language)
+        FlipViewCommands(session: session, language: language)
+    }
+}
+
+private struct FlipFileCommands: Commands {
+    @ObservedObject var session: ImageSession
+    @ObservedObject var language: LanguageManager
+
+    var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button(language.t(.aboutApp)) {
                 showAboutPanel()
@@ -105,7 +116,14 @@ private struct FlipCommands: Commands {
             }
             .disabled(!session.hasImage)
         }
+    }
+}
 
+private struct FlipViewCommands: Commands {
+    @ObservedObject var session: ImageSession
+    @ObservedObject var language: LanguageManager
+
+    var body: some Commands {
         CommandMenu(language.t(.imageMenu)) {
             Button(language.t(.rotateLeft)) {
                 session.apply(.rotateLeft)
