@@ -77,9 +77,12 @@ struct ContentView: View {
                     markupItems: session.markupItems,
                     markupTool: session.markupTool,
                     markupColor: session.markupColor,
+                    markupWeight: session.markupWeight,
                     onAddMarkup: { session.addMarkup($0) },
                     onReplaceMarkup: { session.replaceMarkup($0) },
-                    onRemoveMarkup: { session.removeMarkup(id: $0) }
+                    onRemoveMarkup: { session.removeMarkup(id: $0) },
+                    onSelectMarkup: { session.selectMarkup(id: $0) },
+                    onMarkupTextEditing: { session.setMarkupTextEditing($0) }
                 )
             } else {
                 EmptyStateView()

@@ -71,7 +71,7 @@ private struct FlipFileCommands: Commands {
                 session.requestDelete()
             }
             .keyboardShortcut(.delete, modifiers: [])
-            .disabled(!session.hasImage)
+            .disabled(!session.hasImage || session.selectedMarkupID != nil)
         }
 
         CommandGroup(replacing: .saveItem) {
@@ -98,10 +98,11 @@ private struct FlipFileCommands: Commands {
 
         CommandGroup(replacing: .undoRedo) {
             Button(language.t(.undoEdit)) {
+                if session.undoTextEditorIfNeeded() { return }
                 session.undoLastEdit()
             }
             .keyboardShortcut("z", modifiers: .command)
-            .disabled(!session.isDirty)
+            .disabled(!session.isDirty && !session.isEditingMarkupText)
         }
 
         CommandGroup(replacing: .pasteboard) {

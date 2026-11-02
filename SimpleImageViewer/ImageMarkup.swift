@@ -40,10 +40,55 @@ enum MarkupColor: String, CaseIterable, Equatable {
     }
 }
 
+enum MarkupWeight: String, CaseIterable, Equatable {
+    case thin
+    case regular
+    case thick
+    case heavy
+
+    /// Multiplier on the base stroke (about 1% of the shorter image side).
+    var scale: CGFloat {
+        switch self {
+        case .thin: return 0.5
+        case .regular: return 1
+        case .thick: return 2.15
+        case .heavy: return 3.6
+        }
+    }
+
+    var textScale: CGFloat {
+        switch self {
+        case .thin: return 0.78
+        case .regular: return 1
+        case .thick: return 1.4
+        case .heavy: return 1.85
+        }
+    }
+
+    var sampleHeight: CGFloat {
+        switch self {
+        case .thin: return 1.5
+        case .regular: return 2.5
+        case .thick: return 4
+        case .heavy: return 6.5
+        }
+    }
+
+    var helpKey: L10n.Key {
+        switch self {
+        case .thin: return .weightThin
+        case .regular: return .weightRegular
+        case .thick: return .weightThick
+        case .heavy: return .weightHeavy
+        }
+    }
+}
+
 /// One markup object in **image-normalized** coordinates (origin bottom-left, 0…1).
 struct MarkupItem: Identifiable, Equatable {
     let id: UUID
     var color: MarkupColor
+    var weight: MarkupWeight
     var kind: Kind
 
     enum Kind: Equatable {
@@ -53,10 +98,15 @@ struct MarkupItem: Identifiable, Equatable {
         case text(origin: CGPoint, string: String)
     }
 
-    init(id: UUID = UUID(), color: MarkupColor, kind: Kind) {
+    init(id: UUID = UUID(), color: MarkupColor, weight: MarkupWeight = .regular, kind: Kind) {
         self.id = id
         self.color = color
+        self.weight = weight
         self.kind = kind
+    }
+
+    func with(kind: Kind) -> MarkupItem {
+        MarkupItem(id: id, color: color, weight: weight, kind: kind)
     }
 
     func translated(by delta: CGPoint) -> MarkupItem {
@@ -65,13 +115,13 @@ struct MarkupItem: Identifiable, Equatable {
         }
         switch kind {
         case .stroke(let points):
-            return MarkupItem(id: id, color: color, kind: .stroke(points: points.map(map)))
+            return with(kind: .stroke(points: points.map(map)))
         case .arrow(let start, let end):
-            return MarkupItem(id: id, color: color, kind: .arrow(start: map(start), end: map(end)))
+            return with(kind: .arrow(start: map(start), end: map(end)))
         case .rect(let start, let end):
-            return MarkupItem(id: id, color: color, kind: .rect(start: map(start), end: map(end)))
+            return with(kind: .rect(start: map(start), end: map(end)))
         case .text(let origin, let string):
-            return MarkupItem(id: id, color: color, kind: .text(origin: map(origin), string: string))
+            return with(kind: .text(origin: map(origin), string: string))
         }
     }
 
@@ -86,22 +136,26 @@ struct MarkupItem: Identifiable, Equatable {
         }
         switch kind {
         case .stroke(let points):
-            return MarkupItem(id: id, color: color, kind: .stroke(points: points.map(map)))
+            return with(kind: .stroke(points: points.map(map)))
         case .arrow(let start, let end):
-            return MarkupItem(id: id, color: color, kind: .arrow(start: map(start), end: map(end)))
+            return with(kind: .arrow(start: map(start), end: map(end)))
         case .rect(let start, let end):
-            return MarkupItem(id: id, color: color, kind: .rect(start: map(start), end: map(end)))
+            return with(kind: .rect(start: map(start), end: map(end)))
         case .text(let origin, let string):
-            return MarkupItem(id: id, color: color, kind: .text(origin: map(origin), string: string))
+            return with(kind: .text(origin: map(origin), string: string))
         }
     }
 }
 
 enum ImageMarkup {
+    static func lineWidth(for item: MarkupItem, in imageRect: CGRect) -> CGFloat {
+        max(1.5, min(imageRect.width, imageRect.height) * 0.009 * item.weight.scale)
+    }
+
     static func draw(_ items: [MarkupItem], in imageRect: CGRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext, imageRect.width > 1, imageRect.height > 1 else { return }
-        let line = max(2, min(imageRect.width, imageRect.height) * 0.01)
         for item in items {
+            let line = lineWidth(for: item, in: imageRect)
             ctx.saveGState()
             ctx.setStrokeColor(item.color.nsColor.cgColor)
             ctx.setFillColor(item.color.nsColor.cgColor)
@@ -124,7 +178,7 @@ enum ImageMarkup {
                 )
                 ctx.stroke(rect)
             case .text(let origin, let string):
-                drawText(string, at: denorm(origin, in: imageRect), color: item.color.nsColor, imageRect: imageRect)
+                drawText(string, at: denorm(origin, in: imageRect), color: item.color.nsColor, imageRect: imageRect, weight: item.weight)
             }
             ctx.restoreGState()
         }
@@ -161,8 +215,9 @@ enum ImageMarkup {
 
     static func hitTest(_ items: [MarkupItem], at viewPoint: CGPoint, imageRect: CGRect) -> MarkupItem? {
         guard imageRect.width > 1, imageRect.height > 1 else { return nil }
-        let tol = max(12, min(imageRect.width, imageRect.height) * 0.02)
+        let baseTol = max(12, min(imageRect.width, imageRect.height) * 0.02)
         for item in items.reversed() {
+            let tol = baseTol + lineWidth(for: item, in: imageRect) * 0.5
             if hit(item, at: viewPoint, imageRect: imageRect, tolerance: tol) {
                 return item
             }
@@ -197,8 +252,8 @@ enum ImageMarkup {
         return CGPoint(x: dx, y: dy)
     }
 
-    static func textAttributes(color: NSColor, imageRect: CGRect) -> [NSAttributedString.Key: Any] {
-        let size = max(14, min(imageRect.width, imageRect.height) * 0.045)
+    static func textAttributes(color: NSColor, imageRect: CGRect, weight: MarkupWeight = .regular) -> [NSAttributedString.Key: Any] {
+        let size = max(12, min(imageRect.width, imageRect.height) * 0.045 * weight.textScale)
         return [
             .font: NSFont.systemFont(ofSize: size, weight: .semibold),
             .foregroundColor: color,
@@ -210,7 +265,7 @@ enum ImageMarkup {
     private static func hit(_ item: MarkupItem, at point: CGPoint, imageRect: CGRect, tolerance: CGFloat) -> Bool {
         switch item.kind {
         case .text(let origin, let string):
-            return textFrame(string, origin: origin, color: item.color, imageRect: imageRect)
+            return textFrame(string, origin: origin, color: item.color, weight: item.weight, imageRect: imageRect)
                 .insetBy(dx: -6, dy: -6)
                 .contains(point)
         case .rect(let start, let end):
@@ -237,7 +292,7 @@ enum ImageMarkup {
     private static func boundingBox(_ item: MarkupItem, in imageRect: CGRect) -> CGRect {
         switch item.kind {
         case .text(let origin, let string):
-            return textFrame(string, origin: origin, color: item.color, imageRect: imageRect)
+            return textFrame(string, origin: origin, color: item.color, weight: item.weight, imageRect: imageRect)
         case .rect(let start, let end):
             let a = denorm(start, in: imageRect)
             let b = denorm(end, in: imageRect)
@@ -254,7 +309,8 @@ enum ImageMarkup {
                 minX = min(minX, p.x); maxX = max(maxX, p.x)
                 minY = min(minY, p.y); maxY = max(maxY, p.y)
             }
-            return CGRect(x: minX, y: minY, width: max(1, maxX - minX), height: max(1, maxY - minY))
+            let pad = lineWidth(for: item, in: imageRect) / 2
+            return CGRect(x: minX, y: minY, width: max(1, maxX - minX), height: max(1, maxY - minY)).insetBy(dx: -pad, dy: -pad)
         }
     }
 
@@ -277,9 +333,9 @@ enum ImageMarkup {
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    private static func textFrame(_ string: String, origin: CGPoint, color: MarkupColor, imageRect: CGRect) -> CGRect {
+    private static func textFrame(_ string: String, origin: CGPoint, color: MarkupColor, weight: MarkupWeight, imageRect: CGRect) -> CGRect {
         let originView = denorm(origin, in: imageRect)
-        let size = (string as NSString).size(withAttributes: textAttributes(color: color.nsColor, imageRect: imageRect))
+        let size = (string as NSString).size(withAttributes: textAttributes(color: color.nsColor, imageRect: imageRect, weight: weight))
         return CGRect(x: originView.x, y: originView.y, width: max(size.width, 12), height: max(size.height, 12))
     }
 
@@ -328,10 +384,10 @@ enum ImageMarkup {
         ctx.strokePath()
     }
 
-    private static func drawText(_ string: String, at origin: CGPoint, color: NSColor, imageRect: CGRect) {
+    private static func drawText(_ string: String, at origin: CGPoint, color: NSColor, imageRect: CGRect, weight: MarkupWeight) {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        trimmed.draw(at: origin, withAttributes: textAttributes(color: color, imageRect: imageRect))
+        trimmed.draw(at: origin, withAttributes: textAttributes(color: color, imageRect: imageRect, weight: weight))
     }
 }
 

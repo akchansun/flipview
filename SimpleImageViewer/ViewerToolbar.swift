@@ -62,11 +62,13 @@ struct ViewerToolbarBar: View {
                 }
 
                 colorDots
+                weightButtons
 
                 Spacer(minLength: 12)
 
                 group {
-                    iconButton("arrow.uturn.backward", key: .undoEdit, enabled: session.isDirty) {
+                    iconButton("arrow.uturn.backward", key: .undoEdit, enabled: session.isDirty || session.isEditingMarkupText) {
+                        if session.undoTextEditorIfNeeded() { return }
                         session.undoLastEdit()
                     }
                     iconButton("square.and.arrow.down", key: .save, enabled: session.isDirty) {
@@ -148,5 +150,29 @@ struct ViewerToolbarBar: View {
             }
         }
         .padding(.leading, 6)
+    }
+
+    private var weightButtons: some View {
+        HStack(spacing: 1) {
+            ForEach(MarkupWeight.allCases, id: \.self) { weight in
+                Button {
+                    session.setMarkupWeight(weight)
+                } label: {
+                    Capsule()
+                        .fill(Color.primary)
+                        .frame(width: 14, height: weight.sampleHeight)
+                        .frame(width: 22, height: 24)
+                        .background(
+                            session.markupWeight == weight ? Color.accentColor.opacity(0.28) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(language.t(weight.helpKey))
+                .disabled(!session.hasImage)
+            }
+        }
+        .padding(.leading, 4)
+        .accessibilityLabel(language.t(.markupWeight))
     }
 }

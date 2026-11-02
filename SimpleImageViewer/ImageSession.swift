@@ -37,6 +37,9 @@ final class ImageSession: ObservableObject {
     @Published private(set) var isDirty = false
     @Published private(set) var markupTool: MarkupTool = .browse
     @Published var markupColor: MarkupColor = .red
+    @Published var markupWeight: MarkupWeight = .regular
+    @Published private(set) var selectedMarkupID: UUID?
+    @Published private(set) var isEditingMarkupText = false
     @Published private(set) var markupItems: [MarkupItem] = []
 
     let folderAccess = FolderAccess()
@@ -48,6 +51,7 @@ final class ImageSession: ObservableObject {
     private var prefetchTask: Task<Void, Never>?
     /// Decoded images kept warm for snappy ←/→.
     private let imageCache = NSCache<NSString, NSImage>()
+    private var undoStack: [(ops: [ImageOp], marks: [MarkupItem])] = []
 
     private var cacheConfigured = false
 
@@ -487,6 +491,7 @@ final class ImageSession: ObservableObject {
         if sourceImage == nil {
             sourceImage = source
         }
+        pushUndo()
         pendingOps.append(op)
         markupItems = markupItems.map { $0.transformed(by: op) }
         currentImage = ImageEditing.apply(pendingOps, to: source)
@@ -504,8 +509,36 @@ final class ImageSession: ObservableObject {
         markupTool = tool
     }
 
+    func selectMarkup(id: UUID?) {
+        selectedMarkupID = id
+        guard let id, let item = markupItems.first(where: { $0.id == id }) else { return }
+        markupColor = item.color
+        markupWeight = item.weight
+    }
+
+    func setMarkupTextEditing(_ editing: Bool) {
+        isEditingMarkupText = editing
+    }
+
+    func undoTextEditorIfNeeded() -> Bool {
+        guard isEditingMarkupText,
+              let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
+              editor.undoManager?.canUndo == true else { return false }
+        editor.undoManager?.undo()
+        return true
+    }
+
     func setMarkupColor(_ color: MarkupColor) {
         markupColor = color
+        if restyleSelected(color: color, weight: nil) { return }
+        if markupTool == .browse, hasImage {
+            markupTool = .pen
+        }
+    }
+
+    func setMarkupWeight(_ weight: MarkupWeight) {
+        markupWeight = weight
+        if restyleSelected(color: nil, weight: weight) { return }
         if markupTool == .browse, hasImage {
             markupTool = .pen
         }
@@ -513,6 +546,7 @@ final class ImageSession: ObservableObject {
 
     func addMarkup(_ item: MarkupItem) {
         stopSlideshow()
+        pushUndo()
         markupItems.append(item)
         refreshDirty()
     }
@@ -522,7 +556,9 @@ final class ImageSession: ObservableObject {
             addMarkup(item)
             return
         }
+        if markupItems[idx] == item { return }
         stopSlideshow()
+        pushUndo()
         markupItems[idx] = item
         refreshDirty()
     }
@@ -530,29 +566,45 @@ final class ImageSession: ObservableObject {
     func removeMarkup(id: UUID) {
         guard markupItems.contains(where: { $0.id == id }) else { return }
         stopSlideshow()
+        pushUndo()
         markupItems.removeAll { $0.id == id }
+        if selectedMarkupID == id {
+            selectedMarkupID = nil
+        }
         refreshDirty()
     }
 
+    @discardableResult
+    func removeSelectedMarkup() -> Bool {
+        guard let id = selectedMarkupID else { return false }
+        removeMarkup(id: id)
+        return true
+    }
+
     func undoLastEdit() {
-        if !markupItems.isEmpty {
-            markupItems.removeLast()
-            refreshDirty()
-            return
+        guard let prev = undoStack.popLast() else { return }
+        let opsChanged = prev.ops != pendingOps
+        pendingOps = prev.ops
+        markupItems = prev.marks
+        if let id = selectedMarkupID, !markupItems.contains(where: { $0.id == id }) {
+            selectedMarkupID = nil
         }
-        guard !pendingOps.isEmpty else { return }
-        pendingOps.removeLast()
         if let source = sourceImage {
             currentImage = pendingOps.isEmpty ? source : ImageEditing.apply(pendingOps, to: source)
         }
         refreshDirty()
-        requestZoom(.fit)
+        if opsChanged {
+            requestZoom(.fit)
+        }
     }
 
     func revertEdits() {
         guard isDirty else { return }
+        undoStack = []
         pendingOps = []
         markupItems = []
+        selectedMarkupID = nil
+        isEditingMarkupText = false
         markupTool = .browse
         currentImage = sourceImage
         refreshDirty()
@@ -669,6 +721,9 @@ final class ImageSession: ObservableObject {
         }
         pendingOps = []
         markupItems = []
+        selectedMarkupID = nil
+        isEditingMarkupText = false
+        undoStack = []
         markupTool = .browse
         sourceImage = currentImage
         refreshDirty()
@@ -683,12 +738,34 @@ final class ImageSession: ObservableObject {
     private func clearEdits(keepingImage: Bool) {
         pendingOps = []
         markupItems = []
+        selectedMarkupID = nil
+        isEditingMarkupText = false
+        undoStack = []
         markupTool = .browse
         isDirty = false
         if !keepingImage {
             sourceImage = nil
         }
         markDocumentEdited(false)
+    }
+
+    private func pushUndo() {
+        undoStack.append((ops: pendingOps, marks: markupItems))
+    }
+
+    @discardableResult
+    private func restyleSelected(color: MarkupColor?, weight: MarkupWeight?) -> Bool {
+        guard let id = selectedMarkupID,
+              let idx = markupItems.firstIndex(where: { $0.id == id }) else { return false }
+        var item = markupItems[idx]
+        if let color { item.color = color }
+        if let weight { item.weight = weight }
+        if item == markupItems[idx] { return true }
+        stopSlideshow()
+        pushUndo()
+        markupItems[idx] = item
+        refreshDirty()
+        return true
     }
 
     private func refreshDirty() {

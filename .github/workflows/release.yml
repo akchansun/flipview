@@ -22,19 +22,22 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           ## 新功能
-          - 顶部工具条：翻页、缩放、旋转翻转、画笔 / 箭头 / 矩形 / 文字标注、存储、打印
-          - 已有文字可再点编辑；标注可选中后拖动
+          - 顶部工具条：翻页、缩放、旋转翻转、画笔 / 箭头 / 矩形 / 文字标注、颜色、线条粗细、存储、打印
+          - 已有文字可再点编辑；标注可选中后拖动，并可改颜色 / 粗细
           - 向左 / 向右旋转 90°（⌘L / ⌘R）、水平 / 垂直翻转
           - 拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）
 
           ## 修复
+          - 标注线条粗细可调；选中后再改色/粗细作用在当前项
+          - 撤销按操作回退；选中标注时 Delete 不会误删整张图
           - 标注不再画到顶部工具条上面
           - 放大以指针/手势位置为焦点，不再往左跳
           - 访达双击打开后窗口到最前
 
           ## What’s new
-          - Top toolbar with rotate, flip, draw, arrow, rectangle, and text markup
-          - Existing text can be edited again; markup can be selected and dragged
+          - Top toolbar with rotate, flip, draw, arrow, rectangle, text, color, and line width
+          - Existing text can be edited again; markup can be selected, dragged, recolored, and resized
+          - Undo follows real actions; Delete removes selected markup instead of the file
           - Copy, Save / Save As at full resolution, Print
           - Markup stays on the photo (not over the toolbar)
           - Zoom around the pointer; Flip comes in front of Finder on open

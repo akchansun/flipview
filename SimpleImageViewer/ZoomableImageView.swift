@@ -27,9 +27,12 @@ struct ZoomableImageView: NSViewRepresentable {
     var markupItems: [MarkupItem] = []
     var markupTool: MarkupTool = .browse
     var markupColor: MarkupColor = .red
+    var markupWeight: MarkupWeight = .regular
     var onAddMarkup: (MarkupItem) -> Void = { _ in }
     var onReplaceMarkup: (MarkupItem) -> Void = { _ in }
     var onRemoveMarkup: (UUID) -> Void = { _ in }
+    var onSelectMarkup: (UUID?) -> Void = { _ in }
+    var onMarkupTextEditing: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -60,6 +63,7 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.markupItems = markupItems
         host.overlay.markupTool = markupTool
         host.overlay.markupColor = markupColor
+        host.overlay.markupWeight = markupWeight
         host.overlay.syncCanvas()
         host.window?.invalidateCursorRects(for: host.overlay)
     }
@@ -90,6 +94,8 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.onAddMarkup = onAddMarkup
         host.overlay.onReplaceMarkup = onReplaceMarkup
         host.overlay.onRemoveMarkup = onRemoveMarkup
+        host.overlay.onSelectMarkup = onSelectMarkup
+        host.overlay.onMarkupTextEditing = onMarkupTextEditing
         host.overlay.markupCanvas = host.scrollView.markupCanvas
         host.overlay.imageRectInOverlay = { [weak host] in
             guard let host else { return .zero }
@@ -106,7 +112,12 @@ struct ZoomableImageView: NSViewRepresentable {
         }
         host.overlay.onMouseDown = { [weak host] event in
             guard let host else { return }
-            if host.overlay.handleMarkupMouseDown(event) { return }
+            if host.overlay.handleMarkupMouseDown(event) {
+                if !host.overlay.isEditingText {
+                    host.window?.makeFirstResponder(host.scrollView)
+                }
+                return
+            }
             host.scrollView.handleOverlayMouseDown(event)
         }
         host.overlay.onMouseDragged = { [weak host] event in
@@ -226,6 +237,8 @@ final class PageHitOverlay: NSView {
     var onAddMarkup: ((MarkupItem) -> Void)?
     var onReplaceMarkup: ((MarkupItem) -> Void)?
     var onRemoveMarkup: ((UUID) -> Void)?
+    var onSelectMarkup: ((UUID?) -> Void)?
+    var onMarkupTextEditing: ((Bool) -> Void)?
     var imageRectInOverlay: (() -> NSRect)?
     weak var markupCanvas: MarkupCanvasView?
     var markupItems: [MarkupItem] = [] {
@@ -247,17 +260,39 @@ final class PageHitOverlay: NSView {
             window?.invalidateCursorRects(for: self)
         }
     }
-    var markupColor: MarkupColor = .red
+    var markupColor: MarkupColor = .red {
+        didSet {
+            if let field = textEditor {
+                field.textColor = markupColor.nsColor
+                editingColor = markupColor
+            }
+        }
+    }
+    var markupWeight: MarkupWeight = .regular {
+        didSet {
+            editingWeight = markupWeight
+            if let field = textEditor {
+                field.font = .systemFont(ofSize: 16 * markupWeight.textScale, weight: .semibold)
+            }
+        }
+    }
 
     private var draft: MarkupItem?
     private var dragStartFrac: CGPoint?
     private var movingOriginal: MarkupItem?
-    private var selectedID: UUID?
+    private var selectedID: UUID? {
+        didSet {
+            if oldValue != selectedID {
+                onSelectMarkup?(selectedID)
+            }
+        }
+    }
     private var hiddenID: UUID?
     private var textEditor: NSTextField?
     private var textEditorFrac: CGPoint?
     private var editingItemID: UUID?
     private var editingColor: MarkupColor?
+    private var editingWeight: MarkupWeight?
 
     var isMovingMarkup: Bool { movingOriginal != nil }
 
@@ -320,6 +355,7 @@ final class PageHitOverlay: NSView {
         dragStartFrac = nil
         editingItemID = nil
         editingColor = nil
+        editingWeight = nil
         textEditorFrac = nil
         syncCanvas()
     }
@@ -414,11 +450,11 @@ final class PageHitOverlay: NSView {
         case .browse:
             return false
         case .pen:
-            draft = MarkupItem(color: markupColor, kind: .stroke(points: [frac]))
+            draft = MarkupItem(color: markupColor, weight: markupWeight, kind: .stroke(points: [frac]))
         case .arrow:
-            draft = MarkupItem(color: markupColor, kind: .arrow(start: frac, end: frac))
+            draft = MarkupItem(color: markupColor, weight: markupWeight, kind: .arrow(start: frac, end: frac))
         case .rect:
-            draft = MarkupItem(color: markupColor, kind: .rect(start: frac, end: frac))
+            draft = MarkupItem(color: markupColor, weight: markupWeight, kind: .rect(start: frac, end: frac))
         case .text:
             beginTextEditor(at: frac, existing: nil)
             dragStartFrac = nil
@@ -457,9 +493,15 @@ final class PageHitOverlay: NSView {
                 draft = current
             }
         case .arrow:
-            draft = MarkupItem(id: draft?.id ?? UUID(), color: markupColor, kind: .arrow(start: start, end: frac))
+            if var current = draft {
+                current.kind = .arrow(start: start, end: frac)
+                draft = current
+            }
         case .rect:
-            draft = MarkupItem(id: draft?.id ?? UUID(), color: markupColor, kind: .rect(start: start, end: frac))
+            if var current = draft {
+                current.kind = .rect(start: start, end: frac)
+                draft = current
+            }
         default:
             break
         }
@@ -520,7 +562,7 @@ final class PageHitOverlay: NSView {
     private func isMeaningful(_ item: MarkupItem) -> Bool {
         switch item.kind {
         case .stroke(let points):
-            return points.count >= 2
+            return !points.isEmpty
         case .arrow(let start, let end), .rect(let start, let end):
             let dx = end.x - start.x
             let dy = end.y - start.y
@@ -549,12 +591,14 @@ final class PageHitOverlay: NSView {
             existingText = ""
         }
         let color = existing?.color ?? markupColor
-        let attrs = ImageMarkup.textAttributes(color: color.nsColor, imageRect: imageRect)
+        let weight = existing?.weight ?? markupWeight
+        let attrs = ImageMarkup.textAttributes(color: color.nsColor, imageRect: imageRect, weight: weight)
         let textSize = (existingText as NSString).size(withAttributes: attrs)
         let width = max(240, min(bounds.width - 16, textSize.width + 48))
-        let field = NSTextField(frame: NSRect(x: origin.x, y: origin.y - 4, width: width, height: 28))
+        let fieldHeight = max(28, 22 * weight.textScale)
+        let field = NSTextField(frame: NSRect(x: origin.x, y: origin.y - 4, width: width, height: fieldHeight))
         field.placeholderString = LanguageManager.shared.t(.textPlaceholder)
-        field.font = .systemFont(ofSize: 16, weight: .semibold)
+        field.font = .systemFont(ofSize: 16 * weight.textScale, weight: .semibold)
         field.textColor = color.nsColor
         field.backgroundColor = NSColor.black.withAlphaComponent(0.35)
         field.drawsBackground = true
@@ -571,11 +615,13 @@ final class PageHitOverlay: NSView {
         textEditorFrac = frac
         editingItemID = existing?.id
         editingColor = color
+        editingWeight = weight
         if let existing {
             hiddenID = existing.id
             selectedID = existing.id
         }
         syncCanvas()
+        onMarkupTextEditing?(true)
         window?.makeFirstResponder(field)
         if existing != nil {
             field.currentEditor()?.selectAll(nil)
@@ -605,13 +651,16 @@ final class PageHitOverlay: NSView {
         let frame = field.frame
         let replaceID = editingItemID
         let color = editingColor ?? markupColor
+        let weight = editingWeight ?? markupWeight
         field.delegate = nil
         field.removeFromSuperview()
         textEditor = nil
         textEditorFrac = nil
         editingItemID = nil
         editingColor = nil
+        editingWeight = nil
         hiddenID = nil
+        onMarkupTextEditing?(false)
         let imageRect = imageRectInOverlay?() ?? .zero
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         defer { syncCanvas() }
@@ -631,7 +680,7 @@ final class PageHitOverlay: NSView {
                 onRemoveMarkup?(replaceID)
                 selectedID = nil
             } else {
-                let item = MarkupItem(id: replaceID, color: color, kind: .text(origin: frac, string: text))
+                let item = MarkupItem(id: replaceID, color: color, weight: weight, kind: .text(origin: frac, string: text))
                 if let idx = markupItems.firstIndex(where: { $0.id == replaceID }) {
                     markupItems[idx] = item
                 }
@@ -641,7 +690,7 @@ final class PageHitOverlay: NSView {
             return true
         }
         guard !trimmed.isEmpty else { return true }
-        let item = MarkupItem(color: color, kind: .text(origin: frac, string: text))
+        let item = MarkupItem(color: color, weight: weight, kind: .text(origin: frac, string: text))
         markupItems.append(item)
         onAddMarkup?(item)
         selectedID = item.id
@@ -655,9 +704,13 @@ final class PageHitOverlay: NSView {
         textEditorFrac = nil
         editingItemID = nil
         editingColor = nil
+        editingWeight = nil
         hiddenID = nil
+        onMarkupTextEditing?(false)
         syncCanvas()
     }
+
+    var isEditingText: Bool { textEditor != nil }
 
     override func cursorUpdate(with event: NSEvent) {
         onCursorMove?(event.locationInWindow)

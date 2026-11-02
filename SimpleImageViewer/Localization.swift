@@ -133,6 +133,11 @@ enum L10n {
         case toolRect
         case toolText
         case markupColor
+        case markupWeight
+        case weightThin
+        case weightRegular
+        case weightThick
+        case weightHeavy
         case textPlaceholder
         case noAppsToOpenWith
         case aboutApp
@@ -239,6 +244,11 @@ enum L10n {
         .toolRect: "Rectangle",
         .toolText: "Text",
         .markupColor: "Markup color",
+        .markupWeight: "Line width",
+        .weightThin: "Thin",
+        .weightRegular: "Medium",
+        .weightThick: "Thick",
+        .weightHeavy: "Extra thick",
         .textPlaceholder: "Type here",
         .dontSave: "Don’t Save",
         .couldNotSaveNamed: "Could not save “%@”.",
@@ -352,6 +362,11 @@ enum L10n {
         .toolRect: "矩形",
         .toolText: "文字",
         .markupColor: "标注颜色",
+        .markupWeight: "线条粗细",
+        .weightThin: "细",
+        .weightRegular: "中",
+        .weightThick: "粗",
+        .weightHeavy: "特粗",
         .textPlaceholder: "输入文字",
         .dontSave: "不存储",
         .couldNotSaveNamed: "无法存储“%@”。",
