@@ -127,6 +127,23 @@ enum L10n {
         case unsavedMessage
         case dontSave
         case couldNotSaveNamed
+        case toolBrowse
+        case toolPen
+        case toolArrow
+        case toolRect
+        case toolText
+        case markupColor
+        case markupWeight
+        case weightThin
+        case weightRegular
+        case weightThick
+        case weightHeavy
+        case markupFontSize
+        case fontSmall
+        case fontRegular
+        case fontLarge
+        case fontExtra
+        case textPlaceholder
         case noAppsToOpenWith
         case aboutApp
         case aboutCredits
@@ -224,8 +241,25 @@ enum L10n {
         .printEllipsis: "Print…",
         .editedSuffix: "(Edited)",
         .unsavedTitle: "Save changes to this image?",
-        .unsavedMessageNamed: "“%@” has unsaved rotate or flip changes.",
-        .unsavedMessage: "This image has unsaved rotate or flip changes.",
+        .unsavedMessageNamed: "“%@” has unsaved rotate, flip, or markup changes.",
+        .unsavedMessage: "This image has unsaved rotate, flip, or markup changes.",
+        .toolBrowse: "Browse",
+        .toolPen: "Draw",
+        .toolArrow: "Arrow",
+        .toolRect: "Rectangle",
+        .toolText: "Text",
+        .markupColor: "Markup color",
+        .markupWeight: "Line width",
+        .weightThin: "Thin",
+        .weightRegular: "Medium",
+        .weightThick: "Thick",
+        .weightHeavy: "Extra thick",
+        .markupFontSize: "Font size",
+        .fontSmall: "Small text",
+        .fontRegular: "Medium text",
+        .fontLarge: "Large text",
+        .fontExtra: "Extra large text",
+        .textPlaceholder: "Type here · double-click to edit",
         .dontSave: "Don’t Save",
         .couldNotSaveNamed: "Could not save “%@”.",
         .noAppsToOpenWith: "No Applications",
@@ -330,8 +364,25 @@ enum L10n {
         .printEllipsis: "打印…",
         .editedSuffix: "（已编辑）",
         .unsavedTitle: "存储对此图片的更改？",
-        .unsavedMessageNamed: "“%@” 有未存储的旋转或翻转。",
-        .unsavedMessage: "这张图片有未存储的旋转或翻转。",
+        .unsavedMessageNamed: "“%@” 有未存储的旋转、翻转或标注。",
+        .unsavedMessage: "这张图片有未存储的旋转、翻转或标注。",
+        .toolBrowse: "浏览",
+        .toolPen: "画笔",
+        .toolArrow: "箭头",
+        .toolRect: "矩形",
+        .toolText: "文字",
+        .markupColor: "标注颜色",
+        .markupWeight: "线条粗细",
+        .weightThin: "细",
+        .weightRegular: "中",
+        .weightThick: "粗",
+        .weightHeavy: "特粗",
+        .markupFontSize: "文字大小",
+        .fontSmall: "小字",
+        .fontRegular: "中字",
+        .fontLarge: "大字",
+        .fontExtra: "特大字",
+        .textPlaceholder: "输入文字 · 再点一次或双击可改",
         .dontSave: "不存储",
         .couldNotSaveNamed: "无法存储“%@”。",
         .noAppsToOpenWith: "没有可用的应用程序",

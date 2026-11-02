@@ -71,7 +71,7 @@ private struct FlipFileCommands: Commands {
                 session.requestDelete()
             }
             .keyboardShortcut(.delete, modifiers: [])
-            .disabled(!session.hasImage)
+            .disabled(!session.hasImage || session.selectedMarkupID != nil)
         }
 
         CommandGroup(replacing: .saveItem) {
@@ -98,10 +98,11 @@ private struct FlipFileCommands: Commands {
 
         CommandGroup(replacing: .undoRedo) {
             Button(language.t(.undoEdit)) {
+                if session.undoTextEditorIfNeeded() { return }
                 session.undoLastEdit()
             }
             .keyboardShortcut("z", modifiers: .command)
-            .disabled(!session.isDirty)
+            .disabled(!session.isDirty && !session.isEditingMarkupText)
         }
 
         CommandGroup(replacing: .pasteboard) {
@@ -146,6 +147,29 @@ private struct FlipViewCommands: Commands {
 
             Button(language.t(.flipVertical)) {
                 session.apply(.flipVertical)
+            }
+            .disabled(!session.hasImage)
+
+            Divider()
+
+            Button(language.t(.toolBrowse)) {
+                session.setMarkupTool(.browse)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolPen)) {
+                session.setMarkupTool(.pen)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolArrow)) {
+                session.setMarkupTool(.arrow)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolRect)) {
+                session.setMarkupTool(.rect)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolText)) {
+                session.setMarkupTool(.text)
             }
             .disabled(!session.hasImage)
 

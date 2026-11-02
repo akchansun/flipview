@@ -35,6 +35,13 @@ final class ImageSession: ObservableObject {
     @Published var zoomRequest: ZoomRequest?
     @Published var isDropTargeted = false
     @Published private(set) var isDirty = false
+    @Published private(set) var markupTool: MarkupTool = .browse
+    @Published var markupColor: MarkupColor = .red
+    @Published var markupWeight: MarkupWeight = .regular
+    @Published var markupFontSize: MarkupFontSize = .regular
+    @Published private(set) var selectedMarkupID: UUID?
+    @Published private(set) var isEditingMarkupText = false
+    @Published private(set) var markupItems: [MarkupItem] = []
 
     let folderAccess = FolderAccess()
     /// Display-sized decode without rotate/flip. Replay `pendingOps` from this on undo.
@@ -45,6 +52,7 @@ final class ImageSession: ObservableObject {
     private var prefetchTask: Task<Void, Never>?
     /// Decoded images kept warm for snappy ←/→.
     private let imageCache = NSCache<NSString, NSImage>()
+    private var undoStack: [(ops: [ImageOp], marks: [MarkupItem])] = []
 
     private var cacheConfigured = false
 
@@ -484,42 +492,140 @@ final class ImageSession: ObservableObject {
         if sourceImage == nil {
             sourceImage = source
         }
+        pushUndo()
         pendingOps.append(op)
-        isDirty = true
+        markupItems = markupItems.map { $0.transformed(by: op) }
         currentImage = ImageEditing.apply(pendingOps, to: source)
-        markDocumentEdited(true)
-        applyWindowTitle()
+        refreshDirty()
         if op.swapsDimensions {
             requestZoom(.fit)
         }
     }
 
+    func setMarkupTool(_ tool: MarkupTool) {
+        guard hasImage || tool == .browse else { return }
+        if tool.isDrawing {
+            stopSlideshow()
+        }
+        markupTool = tool
+    }
+
+    func selectMarkup(id: UUID?) {
+        selectedMarkupID = id
+        guard let id, let item = markupItems.first(where: { $0.id == id }) else { return }
+        markupColor = item.color
+        markupWeight = item.weight
+        markupFontSize = item.fontSize
+    }
+
+    func setMarkupTextEditing(_ editing: Bool) {
+        isEditingMarkupText = editing
+    }
+
+    func undoTextEditorIfNeeded() -> Bool {
+        guard isEditingMarkupText,
+              let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
+              editor.undoManager?.canUndo == true else { return false }
+        editor.undoManager?.undo()
+        return true
+    }
+
+    func setMarkupColor(_ color: MarkupColor) {
+        markupColor = color
+        if restyleSelected(color: color, weight: nil, fontSize: nil) { return }
+        if markupTool == .browse, hasImage {
+            markupTool = .pen
+        }
+    }
+
+    func setMarkupWeight(_ weight: MarkupWeight) {
+        markupWeight = weight
+        if restyleSelected(color: nil, weight: weight, fontSize: nil) { return }
+        if markupTool == .browse, hasImage {
+            markupTool = .pen
+        }
+    }
+
+    func setMarkupFontSize(_ size: MarkupFontSize) {
+        markupFontSize = size
+        if restyleSelected(color: nil, weight: nil, fontSize: size) { return }
+        if markupTool == .browse, hasImage {
+            markupTool = .text
+        }
+    }
+
+    func addMarkup(_ item: MarkupItem) {
+        stopSlideshow()
+        pushUndo()
+        markupItems.append(item)
+        refreshDirty()
+    }
+
+    func replaceMarkup(_ item: MarkupItem) {
+        guard let idx = markupItems.firstIndex(where: { $0.id == item.id }) else {
+            addMarkup(item)
+            return
+        }
+        if markupItems[idx] == item { return }
+        stopSlideshow()
+        pushUndo()
+        markupItems[idx] = item
+        refreshDirty()
+    }
+
+    func removeMarkup(id: UUID) {
+        guard markupItems.contains(where: { $0.id == id }) else { return }
+        stopSlideshow()
+        pushUndo()
+        markupItems.removeAll { $0.id == id }
+        if selectedMarkupID == id {
+            selectedMarkupID = nil
+        }
+        refreshDirty()
+    }
+
+    @discardableResult
+    func removeSelectedMarkup() -> Bool {
+        guard let id = selectedMarkupID else { return false }
+        removeMarkup(id: id)
+        return true
+    }
+
     func undoLastEdit() {
-        guard !pendingOps.isEmpty else { return }
-        pendingOps.removeLast()
-        isDirty = !pendingOps.isEmpty
+        guard let prev = undoStack.popLast() else { return }
+        let opsChanged = prev.ops != pendingOps
+        pendingOps = prev.ops
+        markupItems = prev.marks
+        if let id = selectedMarkupID, !markupItems.contains(where: { $0.id == id }) {
+            selectedMarkupID = nil
+        }
         if let source = sourceImage {
             currentImage = pendingOps.isEmpty ? source : ImageEditing.apply(pendingOps, to: source)
         }
-        markDocumentEdited(isDirty)
-        applyWindowTitle()
-        requestZoom(.fit)
+        refreshDirty()
+        if opsChanged {
+            requestZoom(.fit)
+        }
     }
 
     func revertEdits() {
         guard isDirty else { return }
+        undoStack = []
         pendingOps = []
-        isDirty = false
+        markupItems = []
+        selectedMarkupID = nil
+        isEditingMarkupText = false
+        markupTool = .browse
         currentImage = sourceImage
-        markDocumentEdited(false)
-        applyWindowTitle()
+        refreshDirty()
         requestZoom(.fit)
     }
 
     func copyImage() {
         guard let image = currentImage else { return }
+        let composite = ImageMarkup.composite(image: image, items: markupItems)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.writeObjects([image])
+        NSPasteboard.general.writeObjects([composite])
     }
 
     @discardableResult
@@ -554,15 +660,19 @@ final class ImageSession: ObservableObject {
     func printCurrent() {
         guard let url = currentURL, let preview = currentImage else { return }
         let ops = pendingOps
+        let marks = markupItems
         let scoped = url.startAccessingSecurityScopedResource()
         defer {
             if scoped { url.stopAccessingSecurityScopedResource() }
         }
-        let image: NSImage
+        var image: NSImage
         if let printSource = ImageEditing.loadOriented(from: url, maxPixelSize: ImageEditing.printMaxPixelSize) {
             image = ops.isEmpty ? printSource : ImageEditing.apply(ops, to: printSource)
         } else {
             image = preview
+        }
+        if !marks.isEmpty {
+            image = ImageMarkup.composite(image: image, items: marks)
         }
         ImageEditing.printImage(image, jobTitle: url.lastPathComponent)
     }
@@ -597,6 +707,7 @@ final class ImageSession: ObservableObject {
 
     private func writeEdited(from source: URL, to destination: URL, type: UTType, reopenIfMoved: Bool) -> Bool {
         let ops = pendingOps
+        let marks = markupItems
         let scopedSource = source.startAccessingSecurityScopedResource()
         let scopedDest = destination.startAccessingSecurityScopedResource()
         defer {
@@ -604,7 +715,7 @@ final class ImageSession: ObservableObject {
             if scopedDest { destination.stopAccessingSecurityScopedResource() }
         }
         do {
-            try ImageEditing.saveFullResolution(from: source, ops: ops, to: destination, type: type)
+            try ImageEditing.saveFullResolution(from: source, ops: ops, markup: marks, to: destination, type: type)
         } catch {
             errorMessage = LanguageManager.shared.format(
                 .couldNotSaveNamed,
@@ -615,11 +726,17 @@ final class ImageSession: ObservableObject {
 
         imageCache.removeObject(forKey: cacheKey(for: source))
         imageCache.removeObject(forKey: cacheKey(for: destination))
+        if !marks.isEmpty, let img = currentImage {
+            currentImage = ImageMarkup.composite(image: img, items: marks)
+        }
         pendingOps = []
-        isDirty = false
+        markupItems = []
+        selectedMarkupID = nil
+        isEditingMarkupText = false
+        undoStack = []
+        markupTool = .browse
         sourceImage = currentImage
-        markDocumentEdited(false)
-        applyWindowTitle()
+        refreshDirty()
 
         let moved = source.standardizedFileURL.path != destination.standardizedFileURL.path
         if reopenIfMoved, moved {
@@ -630,11 +747,42 @@ final class ImageSession: ObservableObject {
 
     private func clearEdits(keepingImage: Bool) {
         pendingOps = []
+        markupItems = []
+        selectedMarkupID = nil
+        isEditingMarkupText = false
+        undoStack = []
+        markupTool = .browse
         isDirty = false
         if !keepingImage {
             sourceImage = nil
         }
         markDocumentEdited(false)
+    }
+
+    private func pushUndo() {
+        undoStack.append((ops: pendingOps, marks: markupItems))
+    }
+
+    @discardableResult
+    private func restyleSelected(color: MarkupColor?, weight: MarkupWeight?, fontSize: MarkupFontSize?) -> Bool {
+        guard let id = selectedMarkupID,
+              let idx = markupItems.firstIndex(where: { $0.id == id }) else { return false }
+        var item = markupItems[idx]
+        if let color { item.color = color }
+        if let weight, !item.isText { item.weight = weight }
+        if let fontSize, item.isText { item.fontSize = fontSize }
+        if item == markupItems[idx] { return true }
+        stopSlideshow()
+        pushUndo()
+        markupItems[idx] = item
+        refreshDirty()
+        return true
+    }
+
+    private func refreshDirty() {
+        isDirty = !pendingOps.isEmpty || !markupItems.isEmpty
+        markDocumentEdited(isDirty)
+        applyWindowTitle()
     }
 
     private func markDocumentEdited(_ edited: Bool) {

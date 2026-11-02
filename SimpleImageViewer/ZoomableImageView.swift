@@ -24,6 +24,16 @@ struct ZoomableImageView: NSViewRepresentable {
     var onPrint: () -> Void
     var onUndoEdit: () -> Void
     var isDirty: Bool = false
+    var markupItems: [MarkupItem] = []
+    var markupTool: MarkupTool = .browse
+    var markupColor: MarkupColor = .red
+    var markupWeight: MarkupWeight = .regular
+    var markupFontSize: MarkupFontSize = .regular
+    var onAddMarkup: (MarkupItem) -> Void = { _ in }
+    var onReplaceMarkup: (MarkupItem) -> Void = { _ in }
+    var onRemoveMarkup: (UUID) -> Void = { _ in }
+    var onSelectMarkup: (UUID?) -> Void = { _ in }
+    var onMarkupTextEditing: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -37,14 +47,27 @@ struct ZoomableImageView: NSViewRepresentable {
     func updateNSView(_ host: ImageViewerHostView, context: Context) {
         bind(host)
         let urlChanged = host.scrollView.representedURL != imageURL
-        if urlChanged || host.scrollView.image !== image {
+        let imageChanged = host.scrollView.image !== image
+        if urlChanged || imageChanged {
             let resetZoom = urlChanged || dimensionsSwapped(host.scrollView.image, image)
             host.scrollView.setImage(image, url: imageURL, resetZoom: resetZoom)
+        }
+        if urlChanged {
+            host.overlay.resetMarkupInteraction()
+        } else if imageChanged, host.overlay.isEditingText {
+            host.overlay.commitTextEditor()
         }
         if let zoomRequest, context.coordinator.lastZoomID != zoomRequest.id {
             context.coordinator.lastZoomID = zoomRequest.id
             host.scrollView.applyZoom(zoomRequest.kind)
         }
+        host.overlay.markupItems = markupItems
+        host.overlay.markupTool = markupTool
+        host.overlay.markupColor = markupColor
+        host.overlay.markupWeight = markupWeight
+        host.overlay.markupFontSize = markupFontSize
+        host.overlay.syncCanvas()
+        host.window?.invalidateCursorRects(for: host.overlay)
     }
 
     private func bind(_ host: ImageViewerHostView) {
@@ -70,9 +93,45 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.isDirty = isDirty
         host.overlay.onDelete = onDelete
         host.overlay.currentImageURL = { imageURL }
-        host.overlay.onMouseDown = { [weak host] event in host?.scrollView.handleOverlayMouseDown(event) }
-        host.overlay.onMouseDragged = { [weak host] event in host?.scrollView.handleOverlayMouseDragged(event) }
-        host.overlay.onMouseUp = { [weak host] event in host?.scrollView.handleOverlayMouseUp(event) }
+        host.overlay.onAddMarkup = onAddMarkup
+        host.overlay.onReplaceMarkup = onReplaceMarkup
+        host.overlay.onRemoveMarkup = onRemoveMarkup
+        host.overlay.onSelectMarkup = onSelectMarkup
+        host.overlay.onMarkupTextEditing = onMarkupTextEditing
+        host.overlay.markupCanvas = host.scrollView.markupCanvas
+        host.overlay.imageRectInOverlay = { [weak host] in
+            guard let host else { return .zero }
+            return host.scrollView.displayedImageRect(in: host.overlay)
+        }
+        host.scrollView.onDeleteMarkup = { [weak host] in
+            host?.overlay.deleteSelectedMarkup() ?? false
+        }
+        host.scrollView.onEscapeMarkup = { [weak host] in
+            host?.overlay.handleMarkupEscape() ?? false
+        }
+        host.scrollView.onLayout = { [weak host] in
+            host?.overlay.repositionTextEditor()
+        }
+        host.overlay.onMouseDown = { [weak host] event in
+            guard let host else { return }
+            if host.overlay.handleMarkupMouseDown(event) {
+                if !host.overlay.isEditingText {
+                    host.window?.makeFirstResponder(host.scrollView)
+                }
+                return
+            }
+            host.scrollView.handleOverlayMouseDown(event)
+        }
+        host.overlay.onMouseDragged = { [weak host] event in
+            guard let host else { return }
+            if host.overlay.handleMarkupMouseDragged(event) { return }
+            host.scrollView.handleOverlayMouseDragged(event)
+        }
+        host.overlay.onMouseUp = { [weak host] event in
+            guard let host else { return }
+            if host.overlay.handleMarkupMouseUp(event) { return }
+            host.scrollView.handleOverlayMouseUp(event)
+        }
         host.overlay.onScrollWheel = { [weak host] event in host?.scrollView.scrollWheel(with: event) }
         host.overlay.onMagnify = { [weak host] event in host?.scrollView.magnify(with: event) }
         host.overlay.onSwipe = { [weak host] event in host?.scrollView.swipe(with: event) }
@@ -102,7 +161,10 @@ final class ImageViewerHostView: NSView {
         addSubview(scrollView)
         addSubview(overlay)
         overlay.wantsLayer = true
+        overlay.clipsToBounds = true
         overlay.layer?.backgroundColor = NSColor.clear.cgColor
+        overlay.layer?.masksToBounds = true
+        overlay.layerContentsRedrawPolicy = .onSetNeedsDisplay
     }
 
     required init?(coder: NSCoder) {
@@ -113,10 +175,23 @@ final class ImageViewerHostView: NSView {
         super.layout()
         scrollView.frame = bounds
         overlay.frame = bounds
+        overlay.needsDisplay = true
         window?.invalidateCursorRects(for: overlay)
     }
 
     func applyPageCursor(atWindowPoint point: NSPoint) {
+        if overlay.isMovingMarkup || overlay.isResizingMarkup {
+            NSCursor.closedHand.set()
+            return
+        }
+        if overlay.isHoveringMarkup(atWindowPoint: point) {
+            NSCursor.openHand.set()
+            return
+        }
+        if overlay.markupTool.isDrawing {
+            overlay.markupTool.cursor.set()
+            return
+        }
         let local = convert(point, from: nil)
         guard bounds.contains(local) else {
             NSCursor.arrow.set()
@@ -161,9 +236,80 @@ final class PageHitOverlay: NSView {
     var onMagnify: ((NSEvent) -> Void)?
     var onSwipe: ((NSEvent) -> Void)?
     var onCursorMove: ((NSPoint) -> Void)?
+    var onAddMarkup: ((MarkupItem) -> Void)?
+    var onReplaceMarkup: ((MarkupItem) -> Void)?
+    var onRemoveMarkup: ((UUID) -> Void)?
+    var onSelectMarkup: ((UUID?) -> Void)?
+    var onMarkupTextEditing: ((Bool) -> Void)?
+    var imageRectInOverlay: (() -> NSRect)?
+    weak var markupCanvas: MarkupCanvasView?
+    var markupItems: [MarkupItem] = [] {
+        didSet {
+            if let id = selectedID, !markupItems.contains(where: { $0.id == id }) {
+                selectedID = nil
+                hiddenID = nil
+                draft = nil
+                movingOriginal = nil
+            }
+            syncCanvas()
+        }
+    }
+    var markupTool: MarkupTool = .browse {
+        didSet {
+            if oldValue == .text, markupTool != .text {
+                commitTextEditor()
+            }
+            window?.invalidateCursorRects(for: self)
+        }
+    }
+    var markupColor: MarkupColor = .red {
+        didSet {
+            if let field = textEditor {
+                field.textColor = markupColor.nsColor
+                editingColor = markupColor
+            }
+        }
+    }
+    var markupWeight: MarkupWeight = .regular
+    var markupFontSize: MarkupFontSize = .regular {
+        didSet {
+            editingFontSize = markupFontSize
+            if let field = textEditor {
+                field.font = .systemFont(ofSize: 16 * markupFontSize.scale, weight: .semibold)
+            }
+        }
+    }
+
+    private var draft: MarkupItem?
+    private var dragStartFrac: CGPoint?
+    private var movingOriginal: MarkupItem?
+    private var resizeOriginal: MarkupItem?
+    private var resizeHandle: MarkupHandle?
+    private var selectedBeforeClick: UUID?
+    private var selectedID: UUID? {
+        didSet {
+            if oldValue != selectedID {
+                onSelectMarkup?(selectedID)
+            }
+        }
+    }
+    private var hiddenID: UUID?
+    private var textEditor: NSTextField?
+    private var textEditorFrac: CGPoint?
+    private var editingItemID: UUID?
+    private var editingColor: MarkupColor?
+    private var editingWeight: MarkupWeight?
+    private var editingFontSize: MarkupFontSize?
+
+    var isMovingMarkup: Bool { movingOriginal != nil }
+    var isResizingMarkup: Bool { resizeOriginal != nil }
 
     override var isOpaque: Bool { false }
     override var acceptsFirstResponder: Bool { false }
+    override var clipsToBounds: Bool {
+        get { true }
+        set { }
+    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -176,6 +322,10 @@ final class PageHitOverlay: NSView {
 
     override func resetCursorRects() {
         guard bounds.width > 0 else { return }
+        if markupTool.isDrawing {
+            addCursorRect(bounds, cursor: markupTool.cursor)
+            return
+        }
         let third = bounds.width / 3
         addCursorRect(NSRect(x: 0, y: 0, width: third, height: bounds.height), cursor: ImageScrollView.pageLeftCursor)
         addCursorRect(
@@ -183,6 +333,444 @@ final class PageHitOverlay: NSView {
             cursor: ImageScrollView.pageRightCursor
         )
     }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let editor = textEditor, !editor.isHidden, editor.frame.contains(point) {
+            return editor.hitTest(convert(point, to: editor)) ?? editor
+        }
+        return bounds.contains(point) ? self : nil
+    }
+
+    func isHoveringMarkup(atWindowPoint point: NSPoint) -> Bool {
+        let imageRect = imageRectInOverlay?() ?? .zero
+        let local = convert(point, from: nil)
+        return ImageMarkup.hitTest(markupItems, at: local, imageRect: imageRect) != nil
+    }
+
+    func syncCanvas() {
+        markupCanvas?.items = markupItems
+        markupCanvas?.draft = draft
+        markupCanvas?.selectedID = selectedID
+        markupCanvas?.hiddenID = hiddenID ?? editingItemID
+    }
+
+    func resetMarkupInteraction() {
+        cancelTextEditor()
+        selectedID = nil
+        hiddenID = nil
+        draft = nil
+        movingOriginal = nil
+        dragStartFrac = nil
+        editingItemID = nil
+        editingColor = nil
+        editingWeight = nil
+        editingFontSize = nil
+        textEditorFrac = nil
+        resizeOriginal = nil
+        resizeHandle = nil
+        selectedBeforeClick = nil
+        syncCanvas()
+    }
+
+    @discardableResult
+    func handleMarkupEscape() -> Bool {
+        if textEditor != nil {
+            cancelTextEditor()
+            return true
+        }
+        if movingOriginal != nil || resizeOriginal != nil {
+            movingOriginal = nil
+            resizeOriginal = nil
+            resizeHandle = nil
+            dragStartFrac = nil
+            hiddenID = nil
+            draft = nil
+            syncCanvas()
+            return true
+        }
+        if selectedID != nil {
+            selectedID = nil
+            hiddenID = nil
+            draft = nil
+            syncCanvas()
+            return true
+        }
+        return false
+    }
+
+    @discardableResult
+    func deleteSelectedMarkup() -> Bool {
+        if textEditor != nil {
+            cancelTextEditor()
+            return true
+        }
+        guard let id = selectedID else { return false }
+        markupItems.removeAll { $0.id == id }
+        onRemoveMarkup?(id)
+        selectedID = nil
+        hiddenID = nil
+        draft = nil
+        movingOriginal = nil
+        resizeOriginal = nil
+        resizeHandle = nil
+        dragStartFrac = nil
+        syncCanvas()
+        return true
+    }
+
+    @discardableResult
+    func handleMarkupMouseDown(_ event: NSEvent) -> Bool {
+        if textEditor != nil {
+            if event.clickCount >= 2, let editingItemID {
+                let imageRect = imageRectInOverlay?() ?? .zero
+                let local = convert(event.locationInWindow, from: nil)
+                if ImageMarkup.hitTest(markupItems, at: local, imageRect: imageRect)?.id == editingItemID {
+                    return true
+                }
+            }
+            commitTextEditor()
+            return true
+        }
+        selectedBeforeClick = selectedID
+        resizeOriginal = nil
+        resizeHandle = nil
+        let imageRect = imageRectInOverlay?() ?? .zero
+        let local = convert(event.locationInWindow, from: nil)
+        if let selected = markupItems.first(where: { $0.id == selectedID }),
+           let handle = ImageMarkup.handleHit(selected, at: local, imageRect: imageRect) {
+            resizeOriginal = selected
+            resizeHandle = handle
+            movingOriginal = nil
+            dragStartFrac = imageFraction(for: event)
+            draft = nil
+            hiddenID = nil
+            syncCanvas()
+            return true
+        }
+        if let hit = ImageMarkup.hitTest(markupItems, at: local, imageRect: imageRect) {
+            selectedID = hit.id
+            if event.clickCount >= 2, case .text = hit.kind {
+                movingOriginal = nil
+                dragStartFrac = nil
+                beginTextEditor(for: hit)
+                return true
+            }
+            if markupTool == .text, case .text = hit.kind {
+                beginTextEditor(for: hit)
+                return true
+            }
+            movingOriginal = hit
+            dragStartFrac = imageFraction(for: event)
+            draft = nil
+            hiddenID = nil
+            syncCanvas()
+            return true
+        }
+
+        selectedID = nil
+        hiddenID = nil
+        draft = nil
+        movingOriginal = nil
+        syncCanvas()
+
+        guard markupTool.isDrawing else { return false }
+        guard let frac = imageFraction(for: event) else { return true }
+        dragStartFrac = frac
+        switch markupTool {
+        case .browse:
+            return false
+        case .pen:
+            draft = MarkupItem(color: markupColor, weight: markupWeight, fontSize: markupFontSize, kind: .stroke(points: [frac]))
+        case .arrow:
+            draft = MarkupItem(color: markupColor, weight: markupWeight, fontSize: markupFontSize, kind: .arrow(start: frac, end: frac))
+        case .rect:
+            draft = MarkupItem(color: markupColor, weight: markupWeight, fontSize: markupFontSize, kind: .rect(start: frac, end: frac))
+        case .text:
+            beginTextEditor(at: frac, existing: nil)
+            dragStartFrac = nil
+        }
+        syncCanvas()
+        return true
+    }
+
+    @discardableResult
+    func handleMarkupMouseDragged(_ event: NSEvent) -> Bool {
+        if textEditor != nil { return true }
+        if let original = resizeOriginal, let handle = resizeHandle {
+            guard let frac = imageFraction(for: event) else { return true }
+            hiddenID = original.id
+            draft = ImageMarkup.resized(original, handle: handle, to: frac)
+            selectedID = original.id
+            syncCanvas()
+            return true
+        }
+        if let original = movingOriginal, let start = dragStartFrac {
+            guard let frac = imageFraction(for: event) else { return true }
+            let delta = CGPoint(x: frac.x - start.x, y: frac.y - start.y)
+            let imageRect = imageRectInOverlay?() ?? .zero
+            let pixels = hypot(delta.x * imageRect.width, delta.y * imageRect.height)
+            if pixels < 4, draft == nil {
+                return true
+            }
+            let clamped = ImageMarkup.clampTranslation(original, delta: delta)
+            hiddenID = original.id
+            draft = original.translated(by: clamped)
+            selectedID = original.id
+            syncCanvas()
+            return true
+        }
+        guard markupTool.isDrawing else { return false }
+        if markupTool == .text { return true }
+        guard let start = dragStartFrac else { return true }
+        guard let frac = imageFraction(for: event) else { return true }
+        switch markupTool {
+        case .pen:
+            if var current = draft, case .stroke(var points) = current.kind {
+                points.append(frac)
+                current.kind = .stroke(points: points)
+                draft = current
+            }
+        case .arrow:
+            if var current = draft {
+                current.kind = .arrow(start: start, end: frac)
+                draft = current
+            }
+        case .rect:
+            if var current = draft {
+                current.kind = .rect(start: start, end: frac)
+                draft = current
+            }
+        default:
+            break
+        }
+        syncCanvas()
+        return true
+    }
+
+    @discardableResult
+    func handleMarkupMouseUp(_ event: NSEvent) -> Bool {
+        if textEditor != nil { return true }
+        if let original = resizeOriginal {
+            if let draft, draft != original {
+                if let idx = markupItems.firstIndex(where: { $0.id == original.id }) {
+                    markupItems[idx] = draft
+                }
+                onReplaceMarkup?(draft)
+                selectedID = draft.id
+            }
+            resizeOriginal = nil
+            resizeHandle = nil
+            dragStartFrac = nil
+            hiddenID = nil
+            self.draft = nil
+            syncCanvas()
+            return true
+        }
+        if let original = movingOriginal {
+            if let draft, draft != original {
+                if let idx = markupItems.firstIndex(where: { $0.id == original.id }) {
+                    markupItems[idx] = draft
+                }
+                onReplaceMarkup?(draft)
+                selectedID = draft.id
+            } else if case .text = original.kind,
+                      selectedBeforeClick == original.id || event.clickCount >= 2 {
+                beginTextEditor(for: original)
+                movingOriginal = nil
+                dragStartFrac = nil
+                hiddenID = nil
+                self.draft = nil
+                return true
+            }
+            movingOriginal = nil
+            dragStartFrac = nil
+            hiddenID = nil
+            self.draft = nil
+            syncCanvas()
+            return true
+        }
+        guard markupTool.isDrawing else { return false }
+        if markupTool == .text { return true }
+        defer {
+            dragStartFrac = nil
+            draft = nil
+            syncCanvas()
+        }
+        if let draft, isMeaningful(draft) {
+            markupItems.append(draft)
+            onAddMarkup?(draft)
+            selectedID = draft.id
+        }
+        return true
+    }
+
+    private func imageFraction(for event: NSEvent) -> CGPoint? {
+        let imageRect = imageRectInOverlay?() ?? .zero
+        guard imageRect.width > 1, imageRect.height > 1 else { return nil }
+        let local = convert(event.locationInWindow, from: nil)
+        let frac = CGPoint(
+            x: (local.x - imageRect.minX) / imageRect.width,
+            y: (local.y - imageRect.minY) / imageRect.height
+        )
+        return CGPoint(x: min(max(frac.x, 0), 1), y: min(max(frac.y, 0), 1))
+    }
+
+    private func isMeaningful(_ item: MarkupItem) -> Bool {
+        switch item.kind {
+        case .stroke(let points):
+            return !points.isEmpty
+        case .arrow(let start, let end), .rect(let start, let end):
+            let dx = end.x - start.x
+            let dy = end.y - start.y
+            return (dx * dx + dy * dy) > 0.0002
+        case .text(_, let string):
+            return !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private func beginTextEditor(for item: MarkupItem) {
+        guard case .text(let origin, _) = item.kind else { return }
+        beginTextEditor(at: origin, existing: item)
+    }
+
+    private func beginTextEditor(at frac: CGPoint, existing: MarkupItem?) {
+        commitTextEditor()
+        let imageRect = imageRectInOverlay?() ?? .zero
+        let origin = NSPoint(
+            x: imageRect.minX + frac.x * imageRect.width,
+            y: imageRect.minY + frac.y * imageRect.height
+        )
+        let existingText: String
+        if let existing, case .text(_, let string) = existing.kind {
+            existingText = string
+        } else {
+            existingText = ""
+        }
+        let color = existing?.color ?? markupColor
+        let weight = existing?.weight ?? markupWeight
+        let fontSize = existing?.fontSize ?? markupFontSize
+        let attrs = ImageMarkup.textAttributes(color: color.nsColor, imageRect: imageRect, fontSize: fontSize)
+        let textSize = (existingText as NSString).size(withAttributes: attrs)
+        let width = max(260, min(max(120, bounds.width - 16), textSize.width + 56))
+        let fieldHeight = max(30, 22 * fontSize.scale)
+        var fieldX = origin.x
+        var fieldY = origin.y - 4
+        fieldX = min(max(6, fieldX), max(6, bounds.width - width - 6))
+        fieldY = min(max(4, fieldY), max(4, bounds.height - fieldHeight - 4))
+        let field = NSTextField(frame: NSRect(x: fieldX, y: fieldY, width: width, height: fieldHeight))
+        field.placeholderString = LanguageManager.shared.t(.textPlaceholder)
+        field.font = .systemFont(ofSize: 16 * fontSize.scale, weight: .semibold)
+        field.textColor = color.nsColor
+        field.backgroundColor = NSColor.black.withAlphaComponent(0.55)
+        field.drawsBackground = true
+        field.isBezeled = true
+        field.bezelStyle = .roundedBezel
+        field.isEditable = true
+        field.isSelectable = true
+        field.focusRingType = .none
+        field.stringValue = existingText
+        field.target = self
+        field.action = #selector(textEditorEnded(_:))
+        field.delegate = self
+        field.tag = 9401
+        addSubview(field)
+        textEditor = field
+        textEditorFrac = frac
+        editingItemID = existing?.id
+        editingColor = color
+        editingWeight = weight
+        editingFontSize = fontSize
+        if let existing {
+            hiddenID = existing.id
+            selectedID = existing.id
+        }
+        syncCanvas()
+        onMarkupTextEditing?(true)
+        window?.makeFirstResponder(field)
+        field.currentEditor()?.selectedRange = NSRange(location: field.stringValue.count, length: 0)
+    }
+
+    func repositionTextEditor() {
+        guard let field = textEditor, let frac = textEditorFrac else { return }
+        let imageRect = imageRectInOverlay?() ?? .zero
+        guard imageRect.width > 1, imageRect.height > 1 else { return }
+        var frame = field.frame
+        frame.origin = NSPoint(
+            x: imageRect.minX + frac.x * imageRect.width,
+            y: imageRect.minY + frac.y * imageRect.height - 4
+        )
+        field.frame = frame
+    }
+
+    @objc private func textEditorEnded(_ sender: NSTextField) {
+        commitTextEditor()
+    }
+
+    @discardableResult
+    func commitTextEditor() -> Bool {
+        guard let field = textEditor else { return false }
+        let text = field.stringValue
+        let replaceID = editingItemID
+        let color = editingColor ?? markupColor
+        let weight = editingWeight ?? markupWeight
+        let fontSize = editingFontSize ?? markupFontSize
+        let frac = textEditorFrac ?? .zero
+        field.delegate = nil
+        field.removeFromSuperview()
+        textEditor = nil
+        textEditorFrac = nil
+        editingItemID = nil
+        editingColor = nil
+        editingWeight = nil
+        editingFontSize = nil
+        hiddenID = nil
+        onMarkupTextEditing?(false)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        defer { syncCanvas() }
+        if let replaceID {
+            if trimmed.isEmpty {
+                markupItems.removeAll { $0.id == replaceID }
+                onRemoveMarkup?(replaceID)
+                selectedID = nil
+            } else {
+                let item = MarkupItem(
+                    id: replaceID,
+                    color: color,
+                    weight: weight,
+                    fontSize: fontSize,
+                    kind: .text(origin: frac, string: text)
+                )
+                if let idx = markupItems.firstIndex(where: { $0.id == replaceID }) {
+                    markupItems[idx] = item
+                }
+                onReplaceMarkup?(item)
+                selectedID = replaceID
+            }
+            return true
+        }
+        guard !trimmed.isEmpty else { return true }
+        let item = MarkupItem(color: color, weight: weight, fontSize: fontSize, kind: .text(origin: frac, string: text))
+        markupItems.append(item)
+        onAddMarkup?(item)
+        selectedID = item.id
+        return true
+    }
+
+    func cancelTextEditor() {
+        textEditor?.delegate = nil
+        textEditor?.removeFromSuperview()
+        textEditor = nil
+        textEditorFrac = nil
+        editingItemID = nil
+        editingColor = nil
+        editingWeight = nil
+        editingFontSize = nil
+        hiddenID = nil
+        onMarkupTextEditing?(false)
+        syncCanvas()
+    }
+
+    var isEditingText: Bool { textEditor != nil }
 
     override func cursorUpdate(with event: NSEvent) {
         onCursorMove?(event.locationInWindow)
@@ -227,10 +815,6 @@ final class PageHitOverlay: NSView {
 
     override func swipe(with event: NSEvent) {
         onSwipe?(event)
-    }
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        bounds.contains(point) ? self : nil
     }
 
     private func buildContextMenu() -> NSMenu {
@@ -339,6 +923,20 @@ final class PageHitOverlay: NSView {
     }
 }
 
+extension PageHitOverlay: NSTextFieldDelegate {
+    func controlTextDidEndEditing(_ obj: Notification) {
+        commitTextEditor()
+    }
+
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            cancelTextEditor()
+            return true
+        }
+        return false
+    }
+}
+
 final class ImageScrollView: NSScrollView {
     var representedURL: URL?
     private(set) var image: NSImage?
@@ -346,8 +944,16 @@ final class ImageScrollView: NSScrollView {
     var onNavigate: ((NavigateDirection) -> Void)?
     var onDelete: (() -> Void)?
     var onEscape: (() -> Void)?
+    var onLayout: (() -> Void)?
+    var onDeleteMarkup: (() -> Bool)?
+    var onEscapeMarkup: (() -> Bool)?
+    let markupCanvas = MarkupCanvasView()
 
     var isFittingMode: Bool { isFitting }
+
+    func displayedImageRect(in view: NSView) -> NSRect {
+        view.convert(imageView.frame, from: canvas)
+    }
 
     private let canvas = NSView()
     private let imageView = NSImageView()
@@ -381,7 +987,12 @@ final class ImageScrollView: NSScrollView {
         imageView.animates = false
         imageView.wantsLayer = true
         imageView.refusesFirstResponder = true
+        markupCanvas.wantsLayer = true
+        markupCanvas.clipsToBounds = true
+        markupCanvas.layer?.backgroundColor = NSColor.clear.cgColor
+        markupCanvas.layer?.masksToBounds = true
         canvas.addSubview(imageView)
+        canvas.addSubview(markupCanvas)
         documentView = canvas
     }
 
@@ -412,6 +1023,7 @@ final class ImageScrollView: NSScrollView {
 
     func setImage(_ newImage: NSImage, url: URL?, resetZoom: Bool) {
         imageView.isHidden = true
+        markupCanvas.isHidden = true
         image = newImage
         representedURL = url
         imagePointSize = ImageLoader.pointSize(of: newImage)
@@ -422,6 +1034,7 @@ final class ImageScrollView: NSScrollView {
         }
         relayout(keepUserZoom: !resetZoom)
         imageView.isHidden = false
+        markupCanvas.isHidden = false
         window?.makeFirstResponder(self)
     }
 
@@ -499,6 +1112,7 @@ final class ImageScrollView: NSScrollView {
             origin: NSPoint(x: (doc.width - disp.width) / 2, y: (doc.height - disp.height) / 2),
             size: disp
         )
+        markupCanvas.frame = imageView.frame
         if isFitting || !keepUserZoom || !hasOldLayout {
             centerDocument()
         } else {
@@ -512,6 +1126,7 @@ final class ImageScrollView: NSScrollView {
             contentView.setBoundsOrigin(origin)
             reflectScrolledClipView(contentView)
         }
+        onLayout?()
     }
 
     private func centerDocument() {
@@ -521,6 +1136,7 @@ final class ImageScrollView: NSScrollView {
         clip.origin.y = clip.height < doc.height ? (doc.height - clip.height) / 2 : 0
         contentView.setBoundsOrigin(clip.origin)
         reflectScrolledClipView(contentView)
+        onLayout?()
     }
 
     override func wantsForwardedScrollEvents(for axis: NSEvent.GestureAxis) -> Bool { axis == .horizontal }
@@ -647,8 +1263,12 @@ final class ImageScrollView: NSScrollView {
         case 124: onNavigate?(.next)
         case 49:
             onNavigate?(event.modifierFlags.contains(.shift) ? .previous : .next)
-        case 51, 117: onDelete?()
-        case 53: onEscape?()
+        case 51, 117:
+            if onDeleteMarkup?() == true { return }
+            onDelete?()
+        case 53:
+            if onEscapeMarkup?() == true { return }
+            onEscape?()
         default: super.keyDown(with: event)
         }
     }
