@@ -67,7 +67,7 @@ enum MarkupWeight: String, CaseIterable, Equatable {
 
     var sampleHeight: CGFloat {
         switch self {
-        case .thin: return 1.5
+        case .thin: return 2
         case .regular: return 2.5
         case .thick: return 4
         case .heavy: return 6.5
@@ -215,9 +215,9 @@ enum ImageMarkup {
 
     static func hitTest(_ items: [MarkupItem], at viewPoint: CGPoint, imageRect: CGRect) -> MarkupItem? {
         guard imageRect.width > 1, imageRect.height > 1 else { return nil }
-        let baseTol = max(12, min(imageRect.width, imageRect.height) * 0.02)
+        let baseTol = max(18, min(imageRect.width, imageRect.height) * 0.025)
         for item in items.reversed() {
-            let tol = baseTol + lineWidth(for: item, in: imageRect) * 0.5
+            let tol = baseTol + lineWidth(for: item, in: imageRect)
             if hit(item, at: viewPoint, imageRect: imageRect, tolerance: tol) {
                 return item
             }

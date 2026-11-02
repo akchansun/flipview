@@ -153,19 +153,20 @@ struct ViewerToolbarBar: View {
     }
 
     private var weightButtons: some View {
-        HStack(spacing: 1) {
+        HStack(spacing: 2) {
             ForEach(MarkupWeight.allCases, id: \.self) { weight in
                 Button {
                     session.setMarkupWeight(weight)
                 } label: {
-                    Capsule()
-                        .fill(Color.primary)
-                        .frame(width: 14, height: weight.sampleHeight)
-                        .frame(width: 22, height: 24)
-                        .background(
-                            session.markupWeight == weight ? Color.accentColor.opacity(0.28) : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        )
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(session.markupWeight == weight ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06))
+                        Capsule()
+                            .fill(Color.primary)
+                            .frame(width: 14, height: weight.sampleHeight)
+                    }
+                    .frame(width: 28, height: 24)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(language.t(weight.helpKey))
