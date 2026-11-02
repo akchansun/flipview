@@ -114,7 +114,7 @@ enum ImageLoader {
         return NSImage(contentsOf: url)
     }
 
-/// Point size for 100% = one image pixel per screen pixel on the main display.
+    /// Point size for 100% = one image pixel per screen pixel on the main display.
     static func pointSize(of image: NSImage) -> NSSize {
         let pixels = pixelSize(of: image)
         let scale = max(NSScreen.main?.backingScaleFactor ?? 2.0, 1.0)
@@ -128,7 +128,16 @@ enum ImageLoader {
         return image.size
     }
 
-    private static func image(from cgImage: CGImage) -> NSImage {
+    static func cgImage(from image: NSImage) -> CGImage? {
+        let pixels = pixelSize(of: image)
+        var rect = CGRect(origin: .zero, size: pixels)
+        if let cg = image.cgImage(forProposedRect: &rect, context: nil, hints: [.interpolation: NSImageInterpolation.none]) {
+            return cg
+        }
+        return image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    }
+
+    static func image(from cgImage: CGImage) -> NSImage {
         let scale = max(NSScreen.main?.backingScaleFactor ?? 2.0, 1.0)
         let size = NSSize(width: CGFloat(cgImage.width) / scale, height: CGFloat(cgImage.height) / scale)
         return NSImage(cgImage: cgImage, size: size)

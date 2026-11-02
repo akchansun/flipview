@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum NavigateDirection {
     case previous
@@ -33,8 +34,12 @@ final class ImageSession: ObservableObject {
     @Published var showDeleteConfirm = false
     @Published var zoomRequest: ZoomRequest?
     @Published var isDropTargeted = false
+    @Published private(set) var isDirty = false
 
     let folderAccess = FolderAccess()
+    /// Display-sized decode without rotate/flip. Replay `pendingOps` from this on undo.
+    private var sourceImage: NSImage?
+    private var pendingOps: [ImageOp] = []
     private var loadGeneration = 0
     private var slideshowTask: Task<Void, Never>?
     private var prefetchTask: Task<Void, Never>?
@@ -56,13 +61,20 @@ final class ImageSession: ObservableObject {
             return LanguageManager.shared.t(.appName)
         }
         if gallery.isEmpty {
+            if isDirty {
+                return "\(name) \(LanguageManager.shared.t(.editedSuffix))"
+            }
             return name
         }
         let position = "\(currentIndex + 1) / \(gallery.count)"
-        if isSlideshow {
-            return "\(name) — \(position) \(LanguageManager.shared.t(.slideshowSuffix))"
+        var title = "\(name) — \(position)"
+        if isDirty {
+            title += " \(LanguageManager.shared.t(.editedSuffix))"
         }
-        return "\(name) — \(position)"
+        if isSlideshow {
+            title += " \(LanguageManager.shared.t(.slideshowSuffix))"
+        }
+        return title
     }
 
     func refreshWindowTitle() {
@@ -76,6 +88,8 @@ final class ImageSession: ObservableObject {
 
     var canNavigate: Bool { gallery.count > 1 }
 
+    var hasImage: Bool { currentImage != nil }
+
     /// Opens a file (or a folder of files). Sibling discovery is non-recursive.
     func open(_ url: URL) {
         folderAccess.retain(url)
@@ -88,6 +102,7 @@ final class ImageSession: ObservableObject {
     }
 
     func openPanelForImage() {
+        guard confirmDiscardIfNeeded() else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = SupportedFormats.contentTypes
         panel.allowsMultipleSelection = false
@@ -101,6 +116,7 @@ final class ImageSession: ObservableObject {
     }
 
     func openPanelForFolder() {
+        guard confirmDiscardIfNeeded() else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -147,6 +163,7 @@ final class ImageSession: ObservableObject {
     /// Previous / next in the sorted gallery. Wraps around at both ends.
     func navigate(_ direction: NavigateDirection) {
         guard canNavigate else { return }
+        guard confirmDiscardIfNeeded() else { return }
         let count = gallery.count
         switch direction {
         case .next:
@@ -168,6 +185,7 @@ final class ImageSession: ObservableObject {
         if isSlideshow {
             stopSlideshow()
         } else {
+            guard confirmDiscardIfNeeded() else { return }
             startSlideshow()
         }
     }
@@ -199,6 +217,7 @@ final class ImageSession: ObservableObject {
     }
 
     private func openFile(_ url: URL) {
+        guard confirmDiscardIfNeeded() else { return }
         folderAccess.retain(url)
         stopSlideshow()
         currentURL = url
@@ -207,6 +226,7 @@ final class ImageSession: ObservableObject {
     }
 
     private func openFolder(_ directory: URL) {
+        guard confirmDiscardIfNeeded() else { return }
         folderAccess.retain(directory)
         folderAccess.saveBookmark(for: directory)
         stopSlideshow()
@@ -278,6 +298,8 @@ final class ImageSession: ObservableObject {
             } else {
                 currentURL = nil
                 currentImage = nil
+                sourceImage = nil
+                clearEdits(keepingImage: false)
                 isLoading = false
                 errorMessage = LanguageManager.shared.t(.noSupportedImages)
                 return
@@ -330,12 +352,22 @@ final class ImageSession: ObservableObject {
 
     private func loadImage(at url: URL, prefetchNeighbors: Bool = true) {
         ensureCacheConfigured()
+        // Sibling listing often re-calls load for the file already on screen; don't
+        // wipe in-progress rotate/flip.
+        if isDirty, currentURL?.standardizedFileURL.path == url.standardizedFileURL.path {
+            if prefetchNeighbors {
+                prefetchAroundCurrentIndex()
+            }
+            return
+        }
         loadGeneration += 1
         let generation = loadGeneration
         errorMessage = nil
         cancelPrefetch()
+        clearEdits(keepingImage: false)
 
         if let cached = cachedImage(for: url) {
+            sourceImage = cached
             currentImage = cached
             isLoading = false
             if prefetchNeighbors {
@@ -357,6 +389,7 @@ final class ImageSession: ObservableObject {
                 if let image {
                     self.storeCached(image, for: url)
                 }
+                self.sourceImage = image
                 self.currentImage = image
                 self.isLoading = false
                 if image == nil {
@@ -431,6 +464,8 @@ final class ImageSession: ObservableObject {
         let path = url.standardizedFileURL.path
         gallery.removeAll { $0.standardizedFileURL.path == path }
         currentImage = nil
+        sourceImage = nil
+        clearEdits(keepingImage: false)
         if gallery.isEmpty {
             currentURL = nil
             currentIndex = 0
@@ -441,5 +476,171 @@ final class ImageSession: ObservableObject {
         }
         currentURL = gallery[currentIndex]
         loadImage(at: gallery[currentIndex])
+    }
+
+    func apply(_ op: ImageOp) {
+        guard let source = sourceImage ?? currentImage else { return }
+        stopSlideshow()
+        if sourceImage == nil {
+            sourceImage = source
+        }
+        pendingOps.append(op)
+        isDirty = true
+        currentImage = ImageEditing.apply(pendingOps, to: source)
+        markDocumentEdited(true)
+        applyWindowTitle()
+        if op.swapsDimensions {
+            requestZoom(.fit)
+        }
+    }
+
+    func undoLastEdit() {
+        guard !pendingOps.isEmpty else { return }
+        pendingOps.removeLast()
+        isDirty = !pendingOps.isEmpty
+        if let source = sourceImage {
+            currentImage = pendingOps.isEmpty ? source : ImageEditing.apply(pendingOps, to: source)
+        }
+        markDocumentEdited(isDirty)
+        applyWindowTitle()
+        requestZoom(.fit)
+    }
+
+    func revertEdits() {
+        guard isDirty else { return }
+        pendingOps = []
+        isDirty = false
+        currentImage = sourceImage
+        markDocumentEdited(false)
+        applyWindowTitle()
+        requestZoom(.fit)
+    }
+
+    func copyImage() {
+        guard let image = currentImage else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([image])
+    }
+
+    @discardableResult
+    func saveInPlace() -> Bool {
+        guard isDirty, let url = currentURL else { return !isDirty }
+        guard let type = ImageEditing.writableType(for: url) else {
+            saveAs()
+            return !isDirty
+        }
+        return writeEdited(from: url, to: url, type: type, reopenIfMoved: false)
+    }
+
+    func saveAs() {
+        guard currentImage != nil, let url = currentURL else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = ImageEditing.exportTypes
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.nameFieldStringValue = url.deletingPathExtension().lastPathComponent
+        panel.directoryURL = url.deletingLastPathComponent()
+        panel.title = LanguageManager.shared.t(.saveAs)
+        panel.prompt = LanguageManager.shared.t(.save)
+        panel.message = LanguageManager.shared.t(.saveAsMessage)
+        guard panel.runModal() == .OK, let dest = panel.url else { return }
+        folderAccess.retain(dest)
+        let type = ImageEditing.normalizedWriteType(
+            UTType(filenameExtension: dest.pathExtension) ?? ImageEditing.writableType(for: dest) ?? .jpeg
+        )
+        _ = writeEdited(from: url, to: dest, type: type, reopenIfMoved: true)
+    }
+
+    func printCurrent() {
+        guard let url = currentURL, let preview = currentImage else { return }
+        let ops = pendingOps
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+        }
+        let image: NSImage
+        if let printSource = ImageEditing.loadOriented(from: url, maxPixelSize: ImageEditing.printMaxPixelSize) {
+            image = ops.isEmpty ? printSource : ImageEditing.apply(ops, to: printSource)
+        } else {
+            image = preview
+        }
+        ImageEditing.printImage(image, jobTitle: url.lastPathComponent)
+    }
+
+    /// Returns `false` when the user cancelled. Used before navigate / open / quit.
+    @discardableResult
+    func confirmDiscardIfNeeded() -> Bool {
+        guard isDirty else { return true }
+        let lang = LanguageManager.shared
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = lang.t(.unsavedTitle)
+        if let name = currentURL?.lastPathComponent {
+            alert.informativeText = lang.format(.unsavedMessageNamed, name)
+        } else {
+            alert.informativeText = lang.t(.unsavedMessage)
+        }
+        alert.addButton(withTitle: lang.t(.save))
+        alert.addButton(withTitle: lang.t(.dontSave))
+        alert.addButton(withTitle: lang.t(.cancel))
+        NSApp.activate()
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return saveInPlace()
+        case .alertSecondButtonReturn:
+            revertEdits()
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func writeEdited(from source: URL, to destination: URL, type: UTType, reopenIfMoved: Bool) -> Bool {
+        let ops = pendingOps
+        let scopedSource = source.startAccessingSecurityScopedResource()
+        let scopedDest = destination.startAccessingSecurityScopedResource()
+        defer {
+            if scopedSource { source.stopAccessingSecurityScopedResource() }
+            if scopedDest { destination.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            try ImageEditing.saveFullResolution(from: source, ops: ops, to: destination, type: type)
+        } catch {
+            errorMessage = LanguageManager.shared.format(
+                .couldNotSaveNamed,
+                destination.lastPathComponent
+            )
+            return false
+        }
+
+        imageCache.removeObject(forKey: cacheKey(for: source))
+        imageCache.removeObject(forKey: cacheKey(for: destination))
+        pendingOps = []
+        isDirty = false
+        sourceImage = currentImage
+        markDocumentEdited(false)
+        applyWindowTitle()
+
+        let moved = source.standardizedFileURL.path != destination.standardizedFileURL.path
+        if reopenIfMoved, moved {
+            openFile(destination)
+        }
+        return true
+    }
+
+    private func clearEdits(keepingImage: Bool) {
+        pendingOps = []
+        isDirty = false
+        if !keepingImage {
+            sourceImage = nil
+        }
+        markDocumentEdited(false)
+    }
+
+    private func markDocumentEdited(_ edited: Bool) {
+        NSApp.windows.first(where: { $0.frameAutosaveName == "Flip.Main" })?.isDocumentEdited = edited
+        if NSApp.windows.first(where: { $0.frameAutosaveName == "Flip.Main" }) == nil {
+            NSApp.windows.first?.isDocumentEdited = edited
+        }
     }
 }

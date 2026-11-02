@@ -14,6 +14,16 @@ struct ZoomableImageView: NSViewRepresentable {
     var onRevealInFinder: () -> Void
     var onCopyPath: () -> Void
     var onOpenWithApp: (URL) -> Void
+    var onRotateLeft: () -> Void
+    var onRotateRight: () -> Void
+    var onFlipHorizontal: () -> Void
+    var onFlipVertical: () -> Void
+    var onCopyImage: () -> Void
+    var onSave: () -> Void
+    var onSaveAs: () -> Void
+    var onPrint: () -> Void
+    var onUndoEdit: () -> Void
+    var isDirty: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -28,7 +38,8 @@ struct ZoomableImageView: NSViewRepresentable {
         bind(host)
         let urlChanged = host.scrollView.representedURL != imageURL
         if urlChanged || host.scrollView.image !== image {
-            host.scrollView.setImage(image, url: imageURL, resetZoom: urlChanged)
+            let resetZoom = urlChanged || dimensionsSwapped(host.scrollView.image, image)
+            host.scrollView.setImage(image, url: imageURL, resetZoom: resetZoom)
         }
         if let zoomRequest, context.coordinator.lastZoomID != zoomRequest.id {
             context.coordinator.lastZoomID = zoomRequest.id
@@ -47,6 +58,16 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.onRevealInFinder = onRevealInFinder
         host.overlay.onCopyPath = onCopyPath
         host.overlay.onOpenWithApp = onOpenWithApp
+        host.overlay.onRotateLeft = onRotateLeft
+        host.overlay.onRotateRight = onRotateRight
+        host.overlay.onFlipHorizontal = onFlipHorizontal
+        host.overlay.onFlipVertical = onFlipVertical
+        host.overlay.onCopyImage = onCopyImage
+        host.overlay.onSave = onSave
+        host.overlay.onSaveAs = onSaveAs
+        host.overlay.onPrint = onPrint
+        host.overlay.onUndoEdit = onUndoEdit
+        host.overlay.isDirty = isDirty
         host.overlay.onDelete = onDelete
         host.overlay.currentImageURL = { imageURL }
         host.overlay.onMouseDown = { [weak host] event in host?.scrollView.handleOverlayMouseDown(event) }
@@ -56,6 +77,13 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.onMagnify = { [weak host] event in host?.scrollView.magnify(with: event) }
         host.overlay.onSwipe = { [weak host] event in host?.scrollView.swipe(with: event) }
         host.overlay.onCursorMove = { [weak host] point in host?.applyPageCursor(atWindowPoint: point) }
+    }
+
+    private func dimensionsSwapped(_ old: NSImage?, _ new: NSImage) -> Bool {
+        guard let old else { return false }
+        let a = ImageLoader.pixelSize(of: old)
+        let b = ImageLoader.pixelSize(of: new)
+        return abs(a.width - b.height) < 0.5 && abs(a.height - b.width) < 0.5 && abs(a.width - a.height) > 0.5
     }
 
     final class Coordinator {
@@ -113,6 +141,16 @@ final class PageHitOverlay: NSView {
     var onRevealInFinder: (() -> Void)?
     var onCopyPath: (() -> Void)?
     var onOpenWithApp: ((URL) -> Void)?
+    var onRotateLeft: (() -> Void)?
+    var onRotateRight: (() -> Void)?
+    var onFlipHorizontal: (() -> Void)?
+    var onFlipVertical: (() -> Void)?
+    var onCopyImage: (() -> Void)?
+    var onSave: (() -> Void)?
+    var onSaveAs: (() -> Void)?
+    var onPrint: (() -> Void)?
+    var onUndoEdit: (() -> Void)?
+    var isDirty = false
     var currentImageURL: (() -> URL?)?
     var isFitting: (() -> Bool)?
 
@@ -203,6 +241,28 @@ final class PageHitOverlay: NSView {
         menu.addItem(.separator())
 
         let hasFile = currentImageURL?() != nil
+        let rotateLeft = menu.addItem(withTitle: lang.t(.rotateLeft), action: #selector(menuRotateLeft), keyEquivalent: "")
+        rotateLeft.isEnabled = hasFile
+        let rotateRight = menu.addItem(withTitle: lang.t(.rotateRight), action: #selector(menuRotateRight), keyEquivalent: "")
+        rotateRight.isEnabled = hasFile
+        let flipH = menu.addItem(withTitle: lang.t(.flipHorizontal), action: #selector(menuFlipHorizontal), keyEquivalent: "")
+        flipH.isEnabled = hasFile
+        let flipV = menu.addItem(withTitle: lang.t(.flipVertical), action: #selector(menuFlipVertical), keyEquivalent: "")
+        flipV.isEnabled = hasFile
+        menu.addItem(.separator())
+
+        let copyImage = menu.addItem(withTitle: lang.t(.copyImage), action: #selector(menuCopyImage), keyEquivalent: "")
+        copyImage.isEnabled = hasFile
+        let undo = menu.addItem(withTitle: lang.t(.undoEdit), action: #selector(menuUndoEdit), keyEquivalent: "")
+        undo.isEnabled = hasFile && isDirty
+        let save = menu.addItem(withTitle: lang.t(.save), action: #selector(menuSave), keyEquivalent: "")
+        save.isEnabled = hasFile && isDirty
+        let saveAs = menu.addItem(withTitle: lang.t(.saveAsEllipsis), action: #selector(menuSaveAs), keyEquivalent: "")
+        saveAs.isEnabled = hasFile
+        let printItem = menu.addItem(withTitle: lang.t(.printEllipsis), action: #selector(menuPrint), keyEquivalent: "")
+        printItem.isEnabled = hasFile
+        menu.addItem(.separator())
+
         let reveal = menu.addItem(withTitle: lang.t(.revealInFinder), action: #selector(menuReveal), keyEquivalent: "")
         reveal.isEnabled = hasFile
         let copy = menu.addItem(withTitle: lang.t(.copyPath), action: #selector(menuCopyPath), keyEquivalent: "")
@@ -261,6 +321,15 @@ final class PageHitOverlay: NSView {
     @objc private func menuOpenFolder() { onOpenFolder?() }
     @objc private func menuReveal() { onRevealInFinder?() }
     @objc private func menuCopyPath() { onCopyPath?() }
+    @objc private func menuRotateLeft() { onRotateLeft?() }
+    @objc private func menuRotateRight() { onRotateRight?() }
+    @objc private func menuFlipHorizontal() { onFlipHorizontal?() }
+    @objc private func menuFlipVertical() { onFlipVertical?() }
+    @objc private func menuCopyImage() { onCopyImage?() }
+    @objc private func menuUndoEdit() { onUndoEdit?() }
+    @objc private func menuSave() { onSave?() }
+    @objc private func menuSaveAs() { onSaveAs?() }
+    @objc private func menuPrint() { onPrint?() }
     @objc private func menuPrevious() { onNavigate?(.previous) }
     @objc private func menuNext() { onNavigate?(.next) }
     @objc private func menuDelete() { onDelete?() }

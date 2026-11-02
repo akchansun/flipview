@@ -108,6 +108,25 @@ enum L10n {
         case revealInFinder
         case openWith
         case copyPath
+        case copyImage
+        case imageMenu
+        case rotateLeft
+        case rotateRight
+        case flipHorizontal
+        case flipVertical
+        case undoEdit
+        case revertEdits
+        case save
+        case saveAs
+        case saveAsEllipsis
+        case saveAsMessage
+        case printEllipsis
+        case editedSuffix
+        case unsavedTitle
+        case unsavedMessageNamed
+        case unsavedMessage
+        case dontSave
+        case couldNotSaveNamed
         case noAppsToOpenWith
         case aboutApp
         case aboutCredits
@@ -177,7 +196,7 @@ enum L10n {
         .allow: "Allow",
         .openImageToStart: "Open an image to start",
         .openImageHint: "File → Open Image…, drop a file on this window, or use Finder’s Open With.",
-        .shortcutsHint: "← → / swipe / click sides    ·    ⌘O  open",
+        .shortcutsHint: "← → / swipe / click sides    ·    ⌘O  open    ·    ⌘L/R  rotate    ·    ⌘P  print",
         .chooseImageMessage: "Choose an image to view",
         .chooseFolderMessage: "Choose a folder of images",
         .open: "Open",
@@ -190,6 +209,25 @@ enum L10n {
         .revealInFinder: "Reveal in Finder",
         .openWith: "Open With",
         .copyPath: "Copy Path",
+        .copyImage: "Copy Image",
+        .imageMenu: "Image",
+        .rotateLeft: "Rotate Left",
+        .rotateRight: "Rotate Right",
+        .flipHorizontal: "Flip Horizontal",
+        .flipVertical: "Flip Vertical",
+        .undoEdit: "Undo",
+        .revertEdits: "Revert to Saved",
+        .save: "Save",
+        .saveAs: "Save As",
+        .saveAsEllipsis: "Save As…",
+        .saveAsMessage: "JPEG, PNG, TIFF, or HEIC. Saved at the original file’s resolution.",
+        .printEllipsis: "Print…",
+        .editedSuffix: "(Edited)",
+        .unsavedTitle: "Save changes to this image?",
+        .unsavedMessageNamed: "“%@” has unsaved rotate or flip changes.",
+        .unsavedMessage: "This image has unsaved rotate or flip changes.",
+        .dontSave: "Don’t Save",
+        .couldNotSaveNamed: "Could not save “%@”.",
         .noAppsToOpenWith: "No Applications",
         .aboutApp: "About Flip",
         .aboutCredits: "Free & open source (MIT)\nMade by Xixiangfeng Tech · Ankang\nwww.ak129.cn",
@@ -264,7 +302,7 @@ enum L10n {
         .allow: "允许",
         .openImageToStart: "打开一张图片开始浏览",
         .openImageHint: "菜单「文件 → 打开图片…」、把文件拖进窗口，或用访达「打开方式」。",
-        .shortcutsHint: "← → / 滑动 / 点左右两侧    ·    ⌘O  打开",
+        .shortcutsHint: "← → / 滑动 / 点左右两侧    ·    ⌘O  打开    ·    ⌘L/R  旋转    ·    ⌘P  打印",
         .chooseImageMessage: "选择要查看的图片",
         .chooseFolderMessage: "选择包含图片的文件夹",
         .open: "打开",
@@ -277,6 +315,25 @@ enum L10n {
         .revealInFinder: "在访达中显示",
         .openWith: "打开方式",
         .copyPath: "拷贝路径",
+        .copyImage: "拷贝图片",
+        .imageMenu: "图像",
+        .rotateLeft: "向左旋转",
+        .rotateRight: "向右旋转",
+        .flipHorizontal: "水平翻转",
+        .flipVertical: "垂直翻转",
+        .undoEdit: "撤销",
+        .revertEdits: "复原到已保存",
+        .save: "存储",
+        .saveAs: "存储为",
+        .saveAsEllipsis: "存储为…",
+        .saveAsMessage: "可存为 JPEG、PNG、TIFF 或 HEIC。按原图分辨率写入，不会用屏幕预览图覆盖。",
+        .printEllipsis: "打印…",
+        .editedSuffix: "（已编辑）",
+        .unsavedTitle: "存储对此图片的更改？",
+        .unsavedMessageNamed: "“%@” 有未存储的旋转或翻转。",
+        .unsavedMessage: "这张图片有未存储的旋转或翻转。",
+        .dontSave: "不存储",
+        .couldNotSaveNamed: "无法存储“%@”。",
         .noAppsToOpenWith: "没有可用的应用程序",
         .aboutApp: "关于 Flip",
         .aboutCredits: "免费开源（MIT）\n安康喜相逢科技制作\nwww.ak129.cn",

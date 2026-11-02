@@ -21,19 +21,19 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
+          ## 新功能
+          - 向左 / 向右旋转 90°（⌘L / ⌘R）、水平 / 垂直翻转
+          - 拷贝图片、存储 / 存储为（按原图分辨率写入，不会用屏幕预览图覆盖文件）
+          - 打印（⌘P）；未保存更改时翻页、打开或退出会询问
+
           ## 修复
           - 放大以指针/手势位置为焦点，不再往左跳
           - 访达双击打开后窗口到最前（现有窗口认领打开事件）
-          - 打开不再绕 Launch Services 拉起自己（0.4.7 会变慢，偶发关了又打开）
-
-          ## 新功能
-          - 菜单「Flip → 设为默认看图软件」一次登记 JPEG / PNG / HEIC 等常见格式
-          - 图片类型改为系统首选（不再是备选），访达「全部更改」更容易生效
 
           ## What’s new
-          - Bring Flip in front of Finder after Open With / double-click
-          - **Flip → Set as Default Image Viewer** registers common image types
-          - Image document types are now \`Default\` (no longer \`Alternate\`)
+          - Rotate left/right, flip horizontal/vertical
+          - Copy, Save / Save As at full resolution, Print
+          - Prompt before discarding unsaved rotate/flip edits
 
           ## Notes
           - Universal Intel + Apple Silicon

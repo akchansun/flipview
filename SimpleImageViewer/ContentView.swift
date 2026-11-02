@@ -26,7 +26,17 @@ struct ContentView: View {
                     onOpenFolder: { session.openPanelForFolder() },
                     onRevealInFinder: { session.revealInFinder() },
                     onCopyPath: { session.copyCurrentPath() },
-                    onOpenWithApp: { session.openWithApplication(at: $0) }
+                    onOpenWithApp: { session.openWithApplication(at: $0) },
+                    onRotateLeft: { session.apply(.rotateLeft) },
+                    onRotateRight: { session.apply(.rotateRight) },
+                    onFlipHorizontal: { session.apply(.flipHorizontal) },
+                    onFlipVertical: { session.apply(.flipVertical) },
+                    onCopyImage: { session.copyImage() },
+                    onSave: { session.saveInPlace() },
+                    onSaveAs: { session.saveAs() },
+                    onPrint: { session.printCurrent() },
+                    onUndoEdit: { session.undoLastEdit() },
+                    isDirty: session.isDirty
                 )
             } else {
                 EmptyStateView()
@@ -67,7 +77,7 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 480, minHeight: 320)
-        .background(WindowConfigurator(title: session.windowTitle))
+        .background(WindowConfigurator(title: session.windowTitle, isEdited: session.isDirty, session: session))
         .onOpenURL { url in
             session.open(url)
         }
@@ -195,8 +205,11 @@ private struct EmptyStateView: View {
 }
 
 /// Sets the window title (`filename — 3 / 42`) and remembers size/position.
+/// Proxies `windowShouldClose` so unsaved rotate/flip can be saved or discarded.
 private struct WindowConfigurator: NSViewRepresentable {
     var title: String
+    var isEdited: Bool
+    var session: ImageSession
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
@@ -205,12 +218,64 @@ private struct WindowConfigurator: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.session = session
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
             window.title = title
+            window.isDocumentEdited = isEdited
             window.setFrameAutosaveName("Flip.Main")
             window.isRestorable = true
+            context.coordinator.install(on: window)
             ViewerWindow.fulfillPendingIfNeeded()
         }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var session: ImageSession?
+        private var proxy: FlipWindowDelegateProxy?
+
+        func install(on window: NSWindow) {
+            if let existing = window.delegate as? FlipWindowDelegateProxy {
+                existing.session = session
+                return
+            }
+            let proxy = FlipWindowDelegateProxy()
+            proxy.original = window.delegate
+            proxy.session = session
+            self.proxy = proxy
+            window.delegate = proxy
+        }
+    }
+}
+
+/// Forwards the existing SwiftUI window delegate, intercepting close for unsaved edits.
+final class FlipWindowDelegateProxy: NSObject, NSWindowDelegate {
+    weak var original: NSWindowDelegate?
+    weak var session: ImageSession?
+
+    override func responds(to aSelector: Selector!) -> Bool {
+        if aSelector == #selector(NSWindowDelegate.windowShouldClose(_:)) {
+            return true
+        }
+        return (original as AnyObject?)?.responds(to: aSelector) ?? super.responds(to: aSelector)
+    }
+
+    override func forwardingTarget(for aSelector: Selector!) -> Any? {
+        if (original as AnyObject?)?.responds(to: aSelector) == true {
+            return original
+        }
+        return super.forwardingTarget(for: aSelector)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard session?.confirmDiscardIfNeeded() == true else { return false }
+        if (original as AnyObject?)?.responds(to: #selector(NSWindowDelegate.windowShouldClose(_:))) == true {
+            return original?.windowShouldClose?(sender) ?? true
+        }
+        return true
     }
 }

@@ -20,96 +20,189 @@ struct SimpleImageViewerApp: App {
         }
         .defaultSize(width: 1100, height: 740)
         .commands {
-            CommandGroup(replacing: .appInfo) {
-                Button(language.t(.aboutApp)) {
-                    showAboutPanel()
-                }
-                Button(language.t(.visitWebsite)) {
-                    openProductWebsite()
-                }
-                Divider()
-                Button(language.t(.setDefaultMenu)) {
-                    Task { await DefaultImageApp.confirmAndApply() }
-                }
+            FlipCommands(session: appDelegate.session, language: language)
+        }
+    }
+}
+
+private struct FlipCommands: Commands {
+    @ObservedObject var session: ImageSession
+    @ObservedObject var language: LanguageManager
+
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button(language.t(.aboutApp)) {
+                showAboutPanel()
             }
-
-            CommandGroup(replacing: .newItem) {
-                Button(language.t(.openImage)) {
-                    appDelegate.session.openPanelForImage()
-                }
-                .keyboardShortcut("o", modifiers: .command)
-
-                Button(language.t(.openFolder)) {
-                    appDelegate.session.openPanelForFolder()
-                }
-                .keyboardShortcut("o", modifiers: [.command, .shift])
+            Button(language.t(.visitWebsite)) {
+                openProductWebsite()
             }
-
-            CommandGroup(after: .newItem) {
-                Button(language.t(.moveToTrashEllipsis)) {
-                    appDelegate.session.requestDelete()
-                }
-                .keyboardShortcut(.delete, modifiers: [])
+            Divider()
+            Button(language.t(.setDefaultMenu)) {
+                Task { await DefaultImageApp.confirmAndApply() }
             }
+        }
 
-            CommandGroup(replacing: .help) {
-                Button(language.t(.flipHelp)) {
-                    showHelpPanel()
-                }
-                .keyboardShortcut("?", modifiers: .command)
-
-                Button(language.t(.visitWebsite)) {
-                    openProductWebsite()
-                }
+        CommandGroup(replacing: .newItem) {
+            Button(language.t(.openImage)) {
+                session.openPanelForImage()
             }
+            .keyboardShortcut("o", modifiers: .command)
 
-            CommandMenu(language.t(.viewMenu)) {
-                Button(language.t(.previousImage)) {
-                    appDelegate.session.navigate(.previous)
-                }
-                .keyboardShortcut(.leftArrow, modifiers: [])
-
-                Button(language.t(.nextImage)) {
-                    appDelegate.session.navigate(.next)
-                }
-                .keyboardShortcut(.rightArrow, modifiers: [])
-
-                Divider()
-
-                Button(language.t(.zoomIn)) {
-                    appDelegate.session.requestZoom(.in)
-                }
-                .keyboardShortcut("=", modifiers: .command)
-
-                Button(language.t(.zoomOut)) {
-                    appDelegate.session.requestZoom(.out)
-                }
-                .keyboardShortcut("-", modifiers: .command)
-
-                Button(language.t(.fitToWindow)) {
-                    appDelegate.session.requestZoom(.fit)
-                }
-                .keyboardShortcut("0", modifiers: .command)
-
-                Button(language.t(.actualSize)) {
-                    appDelegate.session.requestZoom(.actual)
-                }
-                .keyboardShortcut("1", modifiers: .command)
-
-                Divider()
-
-                Button(appDelegate.session.isSlideshow ? language.t(.stopSlideshow) : language.t(.startSlideshow)) {
-                    appDelegate.session.toggleSlideshow()
-                }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+            Button(language.t(.openFolder)) {
+                session.openPanelForFolder()
             }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+        }
 
-            CommandMenu(language.t(.languageMenu)) {
-                ForEach(LanguagePreference.allCases) { pref in
-                    Button((language.preference == pref ? "✓ " : "    ") + pref.menuTitle) {
-                        language.preference = pref
-                        appDelegate.session.refreshWindowTitle()
-                    }
+        CommandGroup(after: .newItem) {
+            Button(language.t(.moveToTrashEllipsis)) {
+                session.requestDelete()
+            }
+            .keyboardShortcut(.delete, modifiers: [])
+            .disabled(!session.hasImage)
+        }
+
+        CommandGroup(replacing: .saveItem) {
+            Button(language.t(.save)) {
+                session.saveInPlace()
+            }
+            .keyboardShortcut("s", modifiers: .command)
+            .disabled(!session.isDirty)
+
+            Button(language.t(.saveAsEllipsis)) {
+                session.saveAs()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .option])
+            .disabled(!session.hasImage)
+        }
+
+        CommandGroup(replacing: .printItem) {
+            Button(language.t(.printEllipsis)) {
+                session.printCurrent()
+            }
+            .keyboardShortcut("p", modifiers: .command)
+            .disabled(!session.hasImage)
+        }
+
+        CommandGroup(replacing: .undoRedo) {
+            Button(language.t(.undoEdit)) {
+                session.undoLastEdit()
+            }
+            .keyboardShortcut("z", modifiers: .command)
+            .disabled(!session.isDirty)
+        }
+
+        CommandGroup(replacing: .pasteboard) {
+            Button(language.t(.copyImage)) {
+                session.copyImage()
+            }
+            .keyboardShortcut("c", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Button(language.t(.copyPath)) {
+                session.copyCurrentPath()
+            }
+            .disabled(!session.hasImage)
+        }
+
+        CommandMenu(language.t(.imageMenu)) {
+            Button(language.t(.rotateLeft)) {
+                session.apply(.rotateLeft)
+            }
+            .keyboardShortcut("l", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Button(language.t(.rotateRight)) {
+                session.apply(.rotateRight)
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Divider()
+
+            Button(language.t(.flipHorizontal)) {
+                session.apply(.flipHorizontal)
+            }
+            .disabled(!session.hasImage)
+
+            Button(language.t(.flipVertical)) {
+                session.apply(.flipVertical)
+            }
+            .disabled(!session.hasImage)
+
+            Divider()
+
+            Button(language.t(.revertEdits)) {
+                session.revertEdits()
+            }
+            .disabled(!session.isDirty)
+        }
+
+        CommandGroup(replacing: .help) {
+            Button(language.t(.flipHelp)) {
+                showHelpPanel()
+            }
+            .keyboardShortcut("?", modifiers: .command)
+
+            Button(language.t(.visitWebsite)) {
+                openProductWebsite()
+            }
+        }
+
+        CommandMenu(language.t(.viewMenu)) {
+            Button(language.t(.previousImage)) {
+                session.navigate(.previous)
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [])
+            .disabled(!session.canNavigate)
+
+            Button(language.t(.nextImage)) {
+                session.navigate(.next)
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [])
+            .disabled(!session.canNavigate)
+
+            Divider()
+
+            Button(language.t(.zoomIn)) {
+                session.requestZoom(.in)
+            }
+            .keyboardShortcut("=", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Button(language.t(.zoomOut)) {
+                session.requestZoom(.out)
+            }
+            .keyboardShortcut("-", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Button(language.t(.fitToWindow)) {
+                session.requestZoom(.fit)
+            }
+            .keyboardShortcut("0", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Button(language.t(.actualSize)) {
+                session.requestZoom(.actual)
+            }
+            .keyboardShortcut("1", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Divider()
+
+            Button(session.isSlideshow ? language.t(.stopSlideshow) : language.t(.startSlideshow)) {
+                session.toggleSlideshow()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+            .disabled(!session.hasImage)
+        }
+
+        CommandMenu(language.t(.languageMenu)) {
+            ForEach(LanguagePreference.allCases) { pref in
+                Button((language.preference == pref ? "✓ " : "    ") + pref.menuTitle) {
+                    language.preference = pref
+                    session.refreshWindowTitle()
                 }
             }
         }
@@ -172,6 +265,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         ViewerWindow.cancelPending()
         return true
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        session.confirmDiscardIfNeeded() ? .terminateNow : .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {
