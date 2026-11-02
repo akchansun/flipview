@@ -118,7 +118,9 @@ struct ZoomableImageView: NSViewRepresentable {
             host?.overlay.handleMarkupEscape() ?? false
         }
         host.scrollView.onReturnMarkup = { [weak host] in
-            host?.overlay.handleMarkupReturn() ?? false
+            guard let host else { return false }
+            if host.overlay.isEditingText { return true }
+            return host.overlay.handleMarkupReturn()
         }
         host.scrollView.onLayout = { [weak host] in
             host?.overlay.repositionTextEditor()
@@ -126,7 +128,9 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.onMouseDown = { [weak host] event in
             guard let host else { return }
             if host.overlay.handleMarkupMouseDown(event) {
-                if !host.overlay.isEditingText {
+                if host.overlay.isEditingText {
+                    host.overlay.focusTextEditor()
+                } else {
                     host.window?.makeFirstResponder(host.scrollView)
                 }
                 return
@@ -293,7 +297,9 @@ final class PageHitOverlay: NSView {
         didSet {
             editingFontSize = markupFontSize
             if let field = textEditor {
-                field.font = .systemFont(ofSize: 16 * markupFontSize.scale, weight: .semibold)
+                let imageRect = imageRectInOverlay?() ?? bounds
+                let rect = imageRect.width > 1 ? imageRect : bounds
+                field.font = .systemFont(ofSize: ImageMarkup.textPointSize(fontSize: markupFontSize, in: rect), weight: .semibold)
             }
         }
     }
@@ -364,10 +370,11 @@ final class PageHitOverlay: NSView {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        if let editor = textEditor, !editor.isHidden, editor.frame.contains(point) {
-            return editor.hitTest(convert(point, to: editor)) ?? editor
+        let local = convert(point, from: superview)
+        if let editor = textEditor, !editor.isHidden, editor.frame.insetBy(dx: -8, dy: -8).contains(local) {
+            return editor
         }
-        return bounds.contains(point) ? self : nil
+        return bounds.contains(local) ? self : nil
     }
 
     func isHoveringMarkup(atWindowPoint point: NSPoint) -> Bool {
@@ -466,15 +473,13 @@ final class PageHitOverlay: NSView {
     @discardableResult
     func handleMarkupMouseDown(_ event: NSEvent) -> Bool {
         if textEditor != nil {
-            if event.clickCount >= 2, let editingItemID {
-                let imageRect = imageRectInOverlay?() ?? .zero
-                let local = convert(event.locationInWindow, from: nil)
-                if ImageMarkup.hitTest(markupItems, at: local, imageRect: imageRect)?.id == editingItemID {
-                    return true
-                }
+            let local = convert(event.locationInWindow, from: nil)
+            if let editor = textEditor, editor.frame.insetBy(dx: -8, dy: -8).contains(local) {
+                window?.makeFirstResponder(editor)
+                return true
             }
             commitTextEditor()
-            return true
+            // Fall through so this click can start a new markup / selection.
         }
         selectedBeforeClick = selectedID
         resizeOriginal = nil
@@ -658,8 +663,7 @@ final class PageHitOverlay: NSView {
                 }
                 onReplaceMarkup?(draft)
                 selectedID = draft.id
-            } else if case .text = original.kind,
-                      selectedBeforeClick == original.id || event.clickCount >= 2 {
+            } else if case .text = original.kind {
                 beginTextEditor(for: original)
                 movingOriginal = nil
                 dragStartFrac = nil
@@ -719,7 +723,7 @@ final class PageHitOverlay: NSView {
     }
 
     private func beginTextEditor(at frac: CGPoint, existing: MarkupItem?) {
-        commitTextEditor()
+        if textEditor != nil { commitTextEditor() }
         let imageRect = imageRectInOverlay?() ?? .zero
         let origin = NSPoint(
             x: imageRect.minX + frac.x * imageRect.width,
@@ -734,25 +738,34 @@ final class PageHitOverlay: NSView {
         let color = existing?.color ?? markupColor
         let weight = existing?.weight ?? markupWeight
         let fontSize = existing?.fontSize ?? markupFontSize
-        let attrs = ImageMarkup.textAttributes(color: color.nsColor, imageRect: imageRect, fontSize: fontSize)
+        let pointSize = ImageMarkup.textPointSize(fontSize: fontSize, in: imageRect.width > 1 ? imageRect : bounds)
+        let attrs = ImageMarkup.textAttributes(color: color.nsColor, imageRect: imageRect.width > 1 ? imageRect : bounds, fontSize: fontSize)
         let textSize = (existingText as NSString).size(withAttributes: attrs)
-        let width = max(260, min(max(120, bounds.width - 16), textSize.width + 56))
-        let fieldHeight = max(30, 22 * fontSize.scale)
+        let width = min(
+            max(bounds.width - 16, 80),
+            max(existingText.isEmpty ? pointSize * 10 : textSize.width + 18, pointSize * 6)
+        )
+        let fieldHeight = max(pointSize + 10, 22)
         var fieldX = origin.x
-        var fieldY = origin.y - 4
-        fieldX = min(max(6, fieldX), max(6, bounds.width - width - 6))
-        fieldY = min(max(4, fieldY), max(4, bounds.height - fieldHeight - 4))
+        var fieldY = origin.y - 2
+        fieldX = min(max(4, fieldX), max(4, bounds.width - width - 4))
+        fieldY = min(max(2, fieldY), max(2, bounds.height - fieldHeight - 2))
         let field = NSTextField(frame: NSRect(x: fieldX, y: fieldY, width: width, height: fieldHeight))
         field.placeholderString = LanguageManager.shared.t(.textPlaceholder)
-        field.font = .systemFont(ofSize: 16 * fontSize.scale, weight: .semibold)
+        field.font = .systemFont(ofSize: pointSize, weight: .semibold)
         field.textColor = color.nsColor
-        field.backgroundColor = NSColor.black.withAlphaComponent(0.55)
+        field.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.92)
         field.drawsBackground = true
-        field.isBezeled = true
-        field.bezelStyle = .roundedBezel
+        field.isBezeled = false
+        field.isBordered = false
         field.isEditable = true
         field.isSelectable = true
-        field.focusRingType = .none
+        field.focusRingType = .exterior
+        if let cell = field.cell as? NSTextFieldCell {
+            cell.wraps = false
+            cell.isScrollable = true
+            cell.usesSingleLineMode = true
+        }
         field.stringValue = existingText
         field.target = self
         field.action = #selector(textEditorEnded(_:))
@@ -771,8 +784,20 @@ final class PageHitOverlay: NSView {
         }
         syncCanvas()
         onMarkupTextEditing?(true)
+        focusTextEditor()
+    }
+
+    func focusTextEditor() {
+        guard let field = textEditor else { return }
         window?.makeFirstResponder(field)
-        field.currentEditor()?.selectedRange = NSRange(location: field.stringValue.count, length: 0)
+        let length = (field.stringValue as NSString).length
+        field.currentEditor()?.selectedRange = NSRange(location: length, length: 0)
+        DispatchQueue.main.async { [weak self, weak field] in
+            guard let self, let field, self.textEditor === field else { return }
+            self.window?.makeFirstResponder(field)
+            let length = (field.stringValue as NSString).length
+            field.currentEditor()?.selectedRange = NSRange(location: length, length: 0)
+        }
     }
 
     func repositionTextEditor() {
@@ -782,7 +807,7 @@ final class PageHitOverlay: NSView {
         var frame = field.frame
         frame.origin = NSPoint(
             x: imageRect.minX + frac.x * imageRect.width,
-            y: imageRect.minY + frac.y * imageRect.height - 4
+            y: imageRect.minY + frac.y * imageRect.height - 2
         )
         field.frame = frame
     }
@@ -1009,8 +1034,27 @@ final class PageHitOverlay: NSView {
 }
 
 extension PageHitOverlay: NSTextFieldDelegate {
+    func controlTextDidChange(_ obj: Notification) {
+        guard let field = textEditor, field === obj.object as? NSTextField else { return }
+        let imageRect = imageRectInOverlay?() ?? bounds
+        let rect = imageRect.width > 1 ? imageRect : bounds
+        let fontSize = editingFontSize ?? markupFontSize
+        let attrs = ImageMarkup.textAttributes(color: field.textColor ?? .white, imageRect: rect, fontSize: fontSize)
+        let size = (field.stringValue as NSString).size(withAttributes: attrs)
+        let pointSize = ImageMarkup.textPointSize(fontSize: fontSize, in: rect)
+        var frame = field.frame
+        frame.size.width = min(max(4, bounds.width - frame.origin.x - 8), max(size.width + 18, pointSize * 6))
+        field.frame = frame
+    }
+
     func controlTextDidEndEditing(_ obj: Notification) {
-        commitTextEditor()
+        // Ignore transient first-responder loss from SwiftUI / scroll-view focus
+        // bounce. Enter commits via `textEditorEnded`; click-outside commits in mouseDown.
+        guard let field = obj.object as? NSTextField, field === textEditor else { return }
+        let reason = (obj.userInfo?["NSTextMovement"] as? Int) ?? 0
+        if reason == NSReturnTextMovement || reason == NSTabTextMovement {
+            commitTextEditor()
+        }
     }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {

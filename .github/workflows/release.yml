@@ -28,6 +28,7 @@ jobs:
           - 拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）
 
           ## 修复
+          - 文字点一下就能改，输入框贴着字，不再弹出很大一块也抢不走键盘
           - 最细标注是发丝线；点选和选中虚线贴着笔画外边，不再用大包围盒
           - 标注线条粗细可调；选中后再改色/粗细作用在当前项
           - 撤销按操作回退；选中标注时 Delete 不会误删整张图
@@ -36,6 +37,7 @@ jobs:
           - 访达双击打开后窗口到最前
 
           ## What’s new
+          - Click text once to edit; the field matches the drawn size instead of a huge box
           - Crop, Adjust Color, Adjust Size, and Inspector so you can stay in Flip instead of switching to Preview
           - Thinnest markup is a hairline; hit-test and selection hug the ink, not a padded box
           - Top toolbar with rotate, flip, draw, arrow, rectangle, ellipse, text, color, and line width

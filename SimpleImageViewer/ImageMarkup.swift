@@ -383,8 +383,15 @@ enum ImageMarkup {
         return CGPoint(x: dx, y: dy)
     }
 
+    /// Caption-sized type that matches the in-place editor. ~2% of the short side,
+    /// so a typical window stays around 16pt instead of jumping to banner size.
+    static func textPointSize(fontSize: MarkupFontSize, in imageRect: CGRect) -> CGFloat {
+        let minSide = min(imageRect.width, imageRect.height)
+        return max(12, minSide * 0.02 * fontSize.scale)
+    }
+
     static func textAttributes(color: NSColor, imageRect: CGRect, fontSize: MarkupFontSize = .regular) -> [NSAttributedString.Key: Any] {
-        let size = max(12, min(imageRect.width, imageRect.height) * 0.042 * fontSize.scale)
+        let size = textPointSize(fontSize: fontSize, in: imageRect)
         return [
             .font: NSFont.systemFont(ofSize: size, weight: .semibold),
             .foregroundColor: color,
@@ -397,6 +404,7 @@ enum ImageMarkup {
         switch item.kind {
         case .text(let origin, let string):
             return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
+                .insetBy(dx: -4, dy: -4)
                 .contains(point)
         case .rect(let start, let end):
             let rect = denormRect(start, end, in: imageRect)
