@@ -517,6 +517,23 @@ final class ImageSession: ObservableObject {
         refreshDirty()
     }
 
+    func replaceMarkup(_ item: MarkupItem) {
+        guard let idx = markupItems.firstIndex(where: { $0.id == item.id }) else {
+            addMarkup(item)
+            return
+        }
+        stopSlideshow()
+        markupItems[idx] = item
+        refreshDirty()
+    }
+
+    func removeMarkup(id: UUID) {
+        guard markupItems.contains(where: { $0.id == id }) else { return }
+        stopSlideshow()
+        markupItems.removeAll { $0.id == id }
+        refreshDirty()
+    }
+
     func undoLastEdit() {
         if !markupItems.isEmpty {
             markupItems.removeLast()
