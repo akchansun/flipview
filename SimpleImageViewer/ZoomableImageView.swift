@@ -303,6 +303,8 @@ final class ImageScrollView: NSScrollView {
         scrollerStyle = .overlay
         autohidesScrollers = true
         usesPredominantAxisScrolling = false
+        automaticallyAdjustsContentInsets = false
+        contentInsets = NSEdgeInsets()
 
         canvas.wantsLayer = true
         canvas.layer?.backgroundColor = NSColor.black.cgColor
@@ -369,7 +371,7 @@ final class ImageScrollView: NSScrollView {
         case .in:
             isFitting = false
             userZoom = min(64, userZoom * 1.25)
-            relayout(keepUserZoom: true)
+            relayout(keepUserZoom: true, anchorWindowPoint: nil)
         case .out:
             let next = userZoom / 1.25
             if next <= 1.02 {
@@ -379,7 +381,7 @@ final class ImageScrollView: NSScrollView {
                 isFitting = false
                 userZoom = next
             }
-            relayout(keepUserZoom: true)
+            relayout(keepUserZoom: true, anchorWindowPoint: nil)
         }
     }
 
@@ -394,12 +396,31 @@ final class ImageScrollView: NSScrollView {
         return min(1, min(view.width / imagePointSize.width, view.height / imagePointSize.height))
     }
 
-    private func relayout(keepUserZoom: Bool) {
+    /// Keep the image point under `anchorWindowPoint` (or the visible center) fixed.
+    /// Without this, zoom is anchored at the document origin, so the picture jumps left
+    /// as the centered letterbox padding disappears.
+    private func relayout(keepUserZoom: Bool, anchorWindowPoint: NSPoint? = nil) {
         guard !isRelayouting else { return }
         let view = visibleSize()
         guard imagePointSize.width > 0, imagePointSize.height > 0, view.width > 1, view.height > 1 else { return }
         isRelayouting = true
         defer { isRelayouting = false }
+
+        let oldImageFrame = imageView.frame
+        let oldVisible = contentView.documentVisibleRect
+        let hasOldLayout = oldImageFrame.width > 1 && oldImageFrame.height > 1
+        let anchorInDoc: NSPoint
+        if hasOldLayout, let windowPoint = anchorWindowPoint {
+            anchorInDoc = canvas.convert(windowPoint, from: nil)
+        } else if hasOldLayout {
+            anchorInDoc = NSPoint(x: oldVisible.midX, y: oldVisible.midY)
+        } else {
+            anchorInDoc = .zero
+        }
+        let fracX = hasOldLayout ? (anchorInDoc.x - oldImageFrame.minX) / oldImageFrame.width : 0.5
+        let fracY = hasOldLayout ? (anchorInDoc.y - oldImageFrame.minY) / oldImageFrame.height : 0.5
+        let offsetInVisible = NSPoint(x: anchorInDoc.x - oldVisible.minX, y: anchorInDoc.y - oldVisible.minY)
+
         if isFitting { userZoom = 1 }
         let scale = baseScale(for: view) * max(userZoom, 0.01)
         let disp = NSSize(width: imagePointSize.width * scale, height: imagePointSize.height * scale)
@@ -409,8 +430,19 @@ final class ImageScrollView: NSScrollView {
             origin: NSPoint(x: (doc.width - disp.width) / 2, y: (doc.height - disp.height) / 2),
             size: disp
         )
-        if isFitting || !keepUserZoom { centerDocument() }
-        reflectScrolledClipView(contentView)
+        if isFitting || !keepUserZoom || !hasOldLayout {
+            centerDocument()
+        } else {
+            let newAnchor = NSPoint(
+                x: imageView.frame.minX + fracX * imageView.frame.width,
+                y: imageView.frame.minY + fracY * imageView.frame.height
+            )
+            var origin = NSPoint(x: newAnchor.x - offsetInVisible.x, y: newAnchor.y - offsetInVisible.y)
+            origin.x = min(max(origin.x, 0), max(0, doc.width - view.width))
+            origin.y = min(max(origin.y, 0), max(0, doc.height - view.height))
+            contentView.setBoundsOrigin(origin)
+            reflectScrolledClipView(contentView)
+        }
     }
 
     private func centerDocument() {
@@ -471,7 +503,7 @@ final class ImageScrollView: NSScrollView {
             let factor = pow(1.12, delta / (event.hasPreciseScrollingDeltas ? 12.0 : 1.0))
             userZoom = min(64, max(0.05, userZoom * factor))
             if abs(userZoom - 1) < 0.03 { userZoom = 1; isFitting = true }
-            relayout(keepUserZoom: true)
+            relayout(keepUserZoom: true, anchorWindowPoint: event.locationInWindow)
             return
         }
         super.scrollWheel(with: event)
@@ -489,7 +521,7 @@ final class ImageScrollView: NSScrollView {
             userZoom = 1
             isFitting = true
         }
-        relayout(keepUserZoom: true)
+        relayout(keepUserZoom: true, anchorWindowPoint: event.locationInWindow)
     }
 
     func handleOverlayMouseDown(_ event: NSEvent) {
@@ -498,7 +530,14 @@ final class ImageScrollView: NSScrollView {
         didDrag = false
         window?.makeFirstResponder(self)
         if event.clickCount == 2 {
-            applyZoom(isFitting ? .actual : .fit)
+            if isFitting {
+                isFitting = false
+                let base = baseScale(for: visibleSize())
+                userZoom = base > 0 ? (1.0 / base) : 1
+                relayout(keepUserZoom: true, anchorWindowPoint: event.locationInWindow)
+            } else {
+                applyZoom(.fit)
+            }
         }
     }
 
