@@ -85,13 +85,13 @@ enum MarkupWeight: String, CaseIterable, Equatable {
     case thick
     case heavy
 
-    /// Multiplier on the base stroke (about 1% of the shorter image side).
+    /// Multiplier on a hairline base (~0.38% of the shorter image side).
     var scale: CGFloat {
         switch self {
-        case .thin: return 0.5
+        case .thin: return 0.16
         case .regular: return 1
-        case .thick: return 2.15
-        case .heavy: return 3.6
+        case .thick: return 2.3
+        case .heavy: return 4
         }
     }
 
@@ -106,7 +106,7 @@ enum MarkupWeight: String, CaseIterable, Equatable {
 
     var sampleHeight: CGFloat {
         switch self {
-        case .thin: return 2
+        case .thin: return 1
         case .regular: return 2.5
         case .thick: return 4
         case .heavy: return 6.5
@@ -201,7 +201,8 @@ struct MarkupItem: Identifiable, Equatable {
 
 enum ImageMarkup {
     static func lineWidth(for item: MarkupItem, in imageRect: CGRect) -> CGFloat {
-        max(1.5, min(imageRect.width, imageRect.height) * 0.009 * item.weight.scale)
+        // 0.5pt is one device pixel on Retina — a true hairline, not a marker.
+        max(0.5, min(imageRect.width, imageRect.height) * 0.0038 * item.weight.scale)
     }
 
     static func draw(_ items: [MarkupItem], in imageRect: CGRect) {
@@ -267,10 +268,9 @@ enum ImageMarkup {
 
     static func hitTest(_ items: [MarkupItem], at viewPoint: CGPoint, imageRect: CGRect) -> MarkupItem? {
         guard imageRect.width > 1, imageRect.height > 1 else { return nil }
-        let baseTol = max(18, min(imageRect.width, imageRect.height) * 0.025)
         for item in items.reversed() {
-            let tol = baseTol + lineWidth(for: item, in: imageRect)
-            if hit(item, at: viewPoint, imageRect: imageRect, tolerance: tol) {
+            let line = lineWidth(for: item, in: imageRect)
+            if hit(item, at: viewPoint, imageRect: imageRect, tolerance: line / 2) {
                 return item
             }
         }
@@ -279,20 +279,45 @@ enum ImageMarkup {
 
     static func drawSelection(_ item: MarkupItem, in imageRect: CGRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        var box = boundingBox(item, in: imageRect).insetBy(dx: -6, dy: -6)
-        if box.width < 12 { box.size.width = 12 }
-        if box.height < 12 { box.size.height = 12 }
+        let line = lineWidth(for: item, in: imageRect)
+        let outer = line / 2
         ctx.saveGState()
-        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
-        ctx.setLineWidth(1.5)
-        ctx.setLineDash(phase: 0, lengths: [4, 3])
-        ctx.stroke(box)
-        ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.55).cgColor)
-        ctx.setLineDash(phase: 3.5, lengths: [4, 3])
-        ctx.stroke(box)
+        switch item.kind {
+        case .text(let origin, let string):
+            strokeDashedRect(
+                ctx,
+                textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
+            )
+        case .rect(let start, let end):
+            let a = denorm(start, in: imageRect)
+            let b = denorm(end, in: imageRect)
+            let rect = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
+                .insetBy(dx: -outer, dy: -outer)
+            strokeDashedRect(ctx, rect)
+        case .arrow(let start, let end):
+            let path = arrowCGPath(
+                from: denorm(start, in: imageRect),
+                to: denorm(end, in: imageRect),
+                line: line
+            )
+            strokeDashedPath(ctx, path, lineWidth: line + 1)
+        case .stroke(let points):
+            let mapped = points.map { denorm($0, in: imageRect) }
+            if mapped.count == 1, let only = mapped.first {
+                let d = line + 1
+                strokeDashedEllipse(ctx, CGRect(x: only.x - d / 2, y: only.y - d / 2, width: d, height: d))
+            } else {
+                let path = CGMutablePath()
+                if let first = mapped.first {
+                    path.move(to: first)
+                    for point in mapped.dropFirst() { path.addLine(to: point) }
+                }
+                strokeDashedPath(ctx, path, lineWidth: line + 1)
+            }
+        }
         ctx.setLineDash(phase: 0, lengths: [])
         for (_, point) in handles(for: item, in: imageRect) {
-            let knob = CGRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10)
+            let knob = CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8)
             ctx.setFillColor(NSColor.white.cgColor)
             ctx.fill(knob)
             ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.75).cgColor)
@@ -313,7 +338,7 @@ enum ImageMarkup {
 
     static func handleHit(_ item: MarkupItem, at point: CGPoint, imageRect: CGRect) -> MarkupHandle? {
         for (handle, location) in handles(for: item, in: imageRect) {
-            if hypot(point.x - location.x, point.y - location.y) <= 14 {
+            if hypot(point.x - location.x, point.y - location.y) <= 10 {
                 return handle
             }
         }
@@ -357,15 +382,31 @@ enum ImageMarkup {
         switch item.kind {
         case .text(let origin, let string):
             return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
-                .insetBy(dx: -12, dy: -12)
                 .contains(point)
         case .rect(let start, let end):
             let a = denorm(start, in: imageRect)
             let b = denorm(end, in: imageRect)
             let rect = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
-            return rect.insetBy(dx: -tolerance, dy: -tolerance).contains(point)
+            let outer = rect.insetBy(dx: -tolerance, dy: -tolerance)
+            guard outer.contains(point) else { return false }
+            let inner = rect.insetBy(dx: tolerance, dy: tolerance)
+            if inner.width <= 0 || inner.height <= 0 {
+                return true
+            }
+            return !inner.contains(point)
         case .arrow(let start, let end):
-            return distance(point, segmentFrom: denorm(start, in: imageRect), to: denorm(end, in: imageRect)) <= tolerance
+            let from = denorm(start, in: imageRect)
+            let to = denorm(end, in: imageRect)
+            if distance(point, segmentFrom: from, to: to) <= tolerance {
+                return true
+            }
+            let line = lineWidth(for: item, in: imageRect)
+            let angle = atan2(to.y - from.y, to.x - from.x)
+            let head = line * 4.2
+            let a1 = CGPoint(x: to.x + cos(angle + .pi * 0.82) * head, y: to.y + sin(angle + .pi * 0.82) * head)
+            let a2 = CGPoint(x: to.x + cos(angle - .pi * 0.82) * head, y: to.y + sin(angle - .pi * 0.82) * head)
+            return distance(point, segmentFrom: to, to: a1) <= tolerance
+                || distance(point, segmentFrom: to, to: a2) <= tolerance
         case .stroke(let points):
             let mapped = points.map { denorm($0, in: imageRect) }
             if mapped.count == 1, let only = mapped.first {
@@ -377,31 +418,6 @@ enum ImageMarkup {
                 }
             }
             return false
-        }
-    }
-
-    private static func boundingBox(_ item: MarkupItem, in imageRect: CGRect) -> CGRect {
-        switch item.kind {
-        case .text(let origin, let string):
-            return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
-        case .rect(let start, let end):
-            let a = denorm(start, in: imageRect)
-            let b = denorm(end, in: imageRect)
-            return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
-        case .arrow(let start, let end):
-            let a = denorm(start, in: imageRect)
-            let b = denorm(end, in: imageRect)
-            return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
-        case .stroke(let points):
-            let mapped = points.map { denorm($0, in: imageRect) }
-            guard let first = mapped.first else { return .zero }
-            var minX = first.x, maxX = first.x, minY = first.y, maxY = first.y
-            for p in mapped.dropFirst() {
-                minX = min(minX, p.x); maxX = max(maxX, p.x)
-                minY = min(minY, p.y); maxY = max(maxY, p.y)
-            }
-            let pad = lineWidth(for: item, in: imageRect) / 2
-            return CGRect(x: minX, y: minY, width: max(1, maxX - minX), height: max(1, maxY - minY)).insetBy(dx: -pad, dy: -pad)
         }
     }
 
@@ -427,7 +443,54 @@ enum ImageMarkup {
     private static func textFrame(_ string: String, origin: CGPoint, color: MarkupColor, fontSize: MarkupFontSize, imageRect: CGRect) -> CGRect {
         let originView = denorm(origin, in: imageRect)
         let size = (string as NSString).size(withAttributes: textAttributes(color: color.nsColor, imageRect: imageRect, fontSize: fontSize))
-        return CGRect(x: originView.x, y: originView.y, width: max(size.width, 12), height: max(size.height, 12))
+        return CGRect(x: originView.x, y: originView.y, width: max(size.width, 1), height: max(size.height, 1))
+    }
+
+    private static func strokeDashedRect(_ ctx: CGContext, _ rect: CGRect) {
+        ctx.setLineWidth(1)
+        ctx.setLineDash(phase: 0, lengths: [3, 2])
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
+        ctx.stroke(rect)
+        ctx.setLineDash(phase: 2.5, lengths: [3, 2])
+        ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.55).cgColor)
+        ctx.stroke(rect)
+    }
+
+    private static func strokeDashedEllipse(_ ctx: CGContext, _ rect: CGRect) {
+        ctx.setLineWidth(1)
+        ctx.setLineDash(phase: 0, lengths: [3, 2])
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
+        ctx.strokeEllipse(in: rect)
+        ctx.setLineDash(phase: 2.5, lengths: [3, 2])
+        ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.55).cgColor)
+        ctx.strokeEllipse(in: rect)
+    }
+
+    private static func strokeDashedPath(_ ctx: CGContext, _ path: CGPath, lineWidth: CGFloat) {
+        ctx.setLineCap(.round)
+        ctx.setLineJoin(.round)
+        ctx.setLineWidth(lineWidth)
+        ctx.addPath(path)
+        ctx.setLineDash(phase: 0, lengths: [3, 2])
+        ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.9).cgColor)
+        ctx.strokePath()
+        ctx.addPath(path)
+        ctx.setLineDash(phase: 2.5, lengths: [3, 2])
+        ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.55).cgColor)
+        ctx.strokePath()
+    }
+
+    private static func arrowCGPath(from start: CGPoint, to end: CGPoint, line: CGFloat) -> CGPath {
+        let path = CGMutablePath()
+        path.move(to: start)
+        path.addLine(to: end)
+        let angle = atan2(end.y - start.y, end.x - start.x)
+        let head = line * 4.2
+        path.move(to: end)
+        path.addLine(to: CGPoint(x: end.x + cos(angle + .pi * 0.82) * head, y: end.y + sin(angle + .pi * 0.82) * head))
+        path.move(to: end)
+        path.addLine(to: CGPoint(x: end.x + cos(angle - .pi * 0.82) * head, y: end.y + sin(angle - .pi * 0.82) * head))
+        return path
     }
 
     private static func distance(_ p: CGPoint, segmentFrom a: CGPoint, to b: CGPoint) -> CGFloat {
@@ -459,19 +522,7 @@ enum ImageMarkup {
     }
 
     private static func drawArrow(from start: CGPoint, to end: CGPoint, context ctx: CGContext, line: CGFloat) {
-        ctx.beginPath()
-        ctx.move(to: start)
-        ctx.addLine(to: end)
-        ctx.strokePath()
-        let angle = atan2(end.y - start.y, end.x - start.x)
-        let head = line * 4.2
-        let a1 = angle + .pi * 0.82
-        let a2 = angle - .pi * 0.82
-        ctx.beginPath()
-        ctx.move(to: end)
-        ctx.addLine(to: CGPoint(x: end.x + cos(a1) * head, y: end.y + sin(a1) * head))
-        ctx.move(to: end)
-        ctx.addLine(to: CGPoint(x: end.x + cos(a2) * head, y: end.y + sin(a2) * head))
+        ctx.addPath(arrowCGPath(from: start, to: end, line: line))
         ctx.strokePath()
     }
 

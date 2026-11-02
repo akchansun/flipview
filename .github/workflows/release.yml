@@ -28,6 +28,7 @@ jobs:
           - 拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）
 
           ## 修复
+          - 最细标注是发丝线；点选和选中虚线贴着笔画外边，不再用大包围盒
           - 标注线条粗细可调；选中后再改色/粗细作用在当前项
           - 撤销按操作回退；选中标注时 Delete 不会误删整张图
           - 标注不再画到顶部工具条上面
@@ -35,6 +36,7 @@ jobs:
           - 访达双击打开后窗口到最前
 
           ## What’s new
+          - Thinnest markup is a hairline; hit-test and selection hug the ink, not a padded box
           - Top toolbar with rotate, flip, draw, arrow, rectangle, text, color, and line width
           - Existing text can be edited again; markup can be selected, dragged, recolored, and resized
           - Undo follows real actions; Delete removes selected markup instead of the file
