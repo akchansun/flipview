@@ -78,6 +78,7 @@ struct ContentView: View {
                     markupTool: session.markupTool,
                     markupColor: session.markupColor,
                     markupWeight: session.markupWeight,
+                    markupFontSize: session.markupFontSize,
                     onAddMarkup: { session.addMarkup($0) },
                     onReplaceMarkup: { session.replaceMarkup($0) },
                     onRemoveMarkup: { session.removeMarkup(id: $0) },

@@ -40,6 +40,45 @@ enum MarkupColor: String, CaseIterable, Equatable {
     }
 }
 
+enum MarkupFontSize: String, CaseIterable, Equatable {
+    case small
+    case regular
+    case large
+    case extra
+
+    var scale: CGFloat {
+        switch self {
+        case .small: return 0.7
+        case .regular: return 1
+        case .large: return 1.5
+        case .extra: return 2.15
+        }
+    }
+
+    var samplePointSize: CGFloat {
+        switch self {
+        case .small: return 9
+        case .regular: return 12
+        case .large: return 16
+        case .extra: return 20
+        }
+    }
+
+    var helpKey: L10n.Key {
+        switch self {
+        case .small: return .fontSmall
+        case .regular: return .fontRegular
+        case .large: return .fontLarge
+        case .extra: return .fontExtra
+        }
+    }
+}
+
+enum MarkupHandle: Equatable {
+    case start
+    case end
+}
+
 enum MarkupWeight: String, CaseIterable, Equatable {
     case thin
     case regular
@@ -89,6 +128,7 @@ struct MarkupItem: Identifiable, Equatable {
     let id: UUID
     var color: MarkupColor
     var weight: MarkupWeight
+    var fontSize: MarkupFontSize
     var kind: Kind
 
     enum Kind: Equatable {
@@ -98,15 +138,27 @@ struct MarkupItem: Identifiable, Equatable {
         case text(origin: CGPoint, string: String)
     }
 
-    init(id: UUID = UUID(), color: MarkupColor, weight: MarkupWeight = .regular, kind: Kind) {
+    init(
+        id: UUID = UUID(),
+        color: MarkupColor,
+        weight: MarkupWeight = .regular,
+        fontSize: MarkupFontSize = .regular,
+        kind: Kind
+    ) {
         self.id = id
         self.color = color
         self.weight = weight
+        self.fontSize = fontSize
         self.kind = kind
     }
 
+    var isText: Bool {
+        if case .text = kind { return true }
+        return false
+    }
+
     func with(kind: Kind) -> MarkupItem {
-        MarkupItem(id: id, color: color, weight: weight, kind: kind)
+        MarkupItem(id: id, color: color, weight: weight, fontSize: fontSize, kind: kind)
     }
 
     func translated(by delta: CGPoint) -> MarkupItem {
@@ -178,7 +230,7 @@ enum ImageMarkup {
                 )
                 ctx.stroke(rect)
             case .text(let origin, let string):
-                drawText(string, at: denorm(origin, in: imageRect), color: item.color.nsColor, imageRect: imageRect, weight: item.weight)
+                drawText(string, at: denorm(origin, in: imageRect), color: item.color.nsColor, imageRect: imageRect, fontSize: item.fontSize)
             }
             ctx.restoreGState()
         }
@@ -238,7 +290,46 @@ enum ImageMarkup {
         ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.55).cgColor)
         ctx.setLineDash(phase: 3.5, lengths: [4, 3])
         ctx.stroke(box)
+        ctx.setLineDash(phase: 0, lengths: [])
+        for (_, point) in handles(for: item, in: imageRect) {
+            let knob = CGRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10)
+            ctx.setFillColor(NSColor.white.cgColor)
+            ctx.fill(knob)
+            ctx.setStrokeColor(NSColor.black.withAlphaComponent(0.75).cgColor)
+            ctx.setLineWidth(1)
+            ctx.stroke(knob)
+        }
         ctx.restoreGState()
+    }
+
+    static func handles(for item: MarkupItem, in imageRect: CGRect) -> [(MarkupHandle, CGPoint)] {
+        switch item.kind {
+        case .arrow(let start, let end), .rect(let start, let end):
+            return [(.start, denorm(start, in: imageRect)), (.end, denorm(end, in: imageRect))]
+        default:
+            return []
+        }
+    }
+
+    static func handleHit(_ item: MarkupItem, at point: CGPoint, imageRect: CGRect) -> MarkupHandle? {
+        for (handle, location) in handles(for: item, in: imageRect) {
+            if hypot(point.x - location.x, point.y - location.y) <= 14 {
+                return handle
+            }
+        }
+        return nil
+    }
+
+    static func resized(_ item: MarkupItem, handle: MarkupHandle, to frac: CGPoint) -> MarkupItem {
+        let clamped = CGPoint(x: min(max(frac.x, 0), 1), y: min(max(frac.y, 0), 1))
+        switch item.kind {
+        case .arrow(let start, let end):
+            return item.with(kind: handle == .start ? .arrow(start: clamped, end: end) : .arrow(start: start, end: clamped))
+        case .rect(let start, let end):
+            return item.with(kind: handle == .start ? .rect(start: clamped, end: end) : .rect(start: start, end: clamped))
+        default:
+            return item
+        }
     }
 
     static func clampTranslation(_ item: MarkupItem, delta: CGPoint) -> CGPoint {
@@ -252,8 +343,8 @@ enum ImageMarkup {
         return CGPoint(x: dx, y: dy)
     }
 
-    static func textAttributes(color: NSColor, imageRect: CGRect, weight: MarkupWeight = .regular) -> [NSAttributedString.Key: Any] {
-        let size = max(12, min(imageRect.width, imageRect.height) * 0.045 * weight.textScale)
+    static func textAttributes(color: NSColor, imageRect: CGRect, fontSize: MarkupFontSize = .regular) -> [NSAttributedString.Key: Any] {
+        let size = max(12, min(imageRect.width, imageRect.height) * 0.042 * fontSize.scale)
         return [
             .font: NSFont.systemFont(ofSize: size, weight: .semibold),
             .foregroundColor: color,
@@ -265,8 +356,8 @@ enum ImageMarkup {
     private static func hit(_ item: MarkupItem, at point: CGPoint, imageRect: CGRect, tolerance: CGFloat) -> Bool {
         switch item.kind {
         case .text(let origin, let string):
-            return textFrame(string, origin: origin, color: item.color, weight: item.weight, imageRect: imageRect)
-                .insetBy(dx: -6, dy: -6)
+            return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
+                .insetBy(dx: -12, dy: -12)
                 .contains(point)
         case .rect(let start, let end):
             let a = denorm(start, in: imageRect)
@@ -292,7 +383,7 @@ enum ImageMarkup {
     private static func boundingBox(_ item: MarkupItem, in imageRect: CGRect) -> CGRect {
         switch item.kind {
         case .text(let origin, let string):
-            return textFrame(string, origin: origin, color: item.color, weight: item.weight, imageRect: imageRect)
+            return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
         case .rect(let start, let end):
             let a = denorm(start, in: imageRect)
             let b = denorm(end, in: imageRect)
@@ -333,9 +424,9 @@ enum ImageMarkup {
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    private static func textFrame(_ string: String, origin: CGPoint, color: MarkupColor, weight: MarkupWeight, imageRect: CGRect) -> CGRect {
+    private static func textFrame(_ string: String, origin: CGPoint, color: MarkupColor, fontSize: MarkupFontSize, imageRect: CGRect) -> CGRect {
         let originView = denorm(origin, in: imageRect)
-        let size = (string as NSString).size(withAttributes: textAttributes(color: color.nsColor, imageRect: imageRect, weight: weight))
+        let size = (string as NSString).size(withAttributes: textAttributes(color: color.nsColor, imageRect: imageRect, fontSize: fontSize))
         return CGRect(x: originView.x, y: originView.y, width: max(size.width, 12), height: max(size.height, 12))
     }
 
@@ -384,10 +475,10 @@ enum ImageMarkup {
         ctx.strokePath()
     }
 
-    private static func drawText(_ string: String, at origin: CGPoint, color: NSColor, imageRect: CGRect, weight: MarkupWeight) {
+    private static func drawText(_ string: String, at origin: CGPoint, color: NSColor, imageRect: CGRect, fontSize: MarkupFontSize) {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        trimmed.draw(at: origin, withAttributes: textAttributes(color: color, imageRect: imageRect, weight: weight))
+        trimmed.draw(at: origin, withAttributes: textAttributes(color: color, imageRect: imageRect, fontSize: fontSize))
     }
 }
 

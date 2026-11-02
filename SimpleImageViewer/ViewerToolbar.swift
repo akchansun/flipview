@@ -63,6 +63,7 @@ struct ViewerToolbarBar: View {
 
                 colorDots
                 weightButtons
+                fontSizeButtons
 
                 Spacer(minLength: 12)
 
@@ -134,15 +135,19 @@ struct ViewerToolbarBar: View {
                 Button {
                     session.setMarkupColor(color)
                 } label: {
-                    Circle()
-                        .fill(Color(nsColor: color.nsColor))
-                        .frame(width: 12, height: 12)
-                        .overlay(
-                            Circle().strokeBorder(
-                                session.markupColor == color ? Color.primary : Color.primary.opacity(0.25),
-                                lineWidth: session.markupColor == color ? 2 : 0.5
+                    ZStack {
+                        Circle()
+                            .fill(Color(nsColor: color.nsColor))
+                            .frame(width: 12, height: 12)
+                            .overlay(
+                                Circle().strokeBorder(
+                                    session.markupColor == color ? Color.primary : Color.primary.opacity(0.25),
+                                    lineWidth: session.markupColor == color ? 2 : 0.5
+                                )
                             )
-                        )
+                    }
+                    .frame(width: 22, height: 24)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help(language.t(.markupColor))
@@ -175,5 +180,30 @@ struct ViewerToolbarBar: View {
         }
         .padding(.leading, 4)
         .accessibilityLabel(language.t(.markupWeight))
+    }
+
+    private var fontSizeButtons: some View {
+        HStack(spacing: 1) {
+            ForEach(MarkupFontSize.allCases, id: \.self) { size in
+                Button {
+                    session.setMarkupFontSize(size)
+                } label: {
+                    Text("A")
+                        .font(.system(size: size.samplePointSize, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .frame(width: 26, height: 24)
+                        .background(
+                            session.markupFontSize == size ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06),
+                            in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(language.t(size.helpKey))
+                .disabled(!session.hasImage)
+            }
+        }
+        .padding(.leading, 4)
+        .accessibilityLabel(language.t(.markupFontSize))
     }
 }

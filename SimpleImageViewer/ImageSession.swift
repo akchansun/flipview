@@ -38,6 +38,7 @@ final class ImageSession: ObservableObject {
     @Published private(set) var markupTool: MarkupTool = .browse
     @Published var markupColor: MarkupColor = .red
     @Published var markupWeight: MarkupWeight = .regular
+    @Published var markupFontSize: MarkupFontSize = .regular
     @Published private(set) var selectedMarkupID: UUID?
     @Published private(set) var isEditingMarkupText = false
     @Published private(set) var markupItems: [MarkupItem] = []
@@ -514,6 +515,7 @@ final class ImageSession: ObservableObject {
         guard let id, let item = markupItems.first(where: { $0.id == id }) else { return }
         markupColor = item.color
         markupWeight = item.weight
+        markupFontSize = item.fontSize
     }
 
     func setMarkupTextEditing(_ editing: Bool) {
@@ -530,7 +532,7 @@ final class ImageSession: ObservableObject {
 
     func setMarkupColor(_ color: MarkupColor) {
         markupColor = color
-        if restyleSelected(color: color, weight: nil) { return }
+        if restyleSelected(color: color, weight: nil, fontSize: nil) { return }
         if markupTool == .browse, hasImage {
             markupTool = .pen
         }
@@ -538,9 +540,17 @@ final class ImageSession: ObservableObject {
 
     func setMarkupWeight(_ weight: MarkupWeight) {
         markupWeight = weight
-        if restyleSelected(color: nil, weight: weight) { return }
+        if restyleSelected(color: nil, weight: weight, fontSize: nil) { return }
         if markupTool == .browse, hasImage {
             markupTool = .pen
+        }
+    }
+
+    func setMarkupFontSize(_ size: MarkupFontSize) {
+        markupFontSize = size
+        if restyleSelected(color: nil, weight: nil, fontSize: size) { return }
+        if markupTool == .browse, hasImage {
+            markupTool = .text
         }
     }
 
@@ -754,12 +764,13 @@ final class ImageSession: ObservableObject {
     }
 
     @discardableResult
-    private func restyleSelected(color: MarkupColor?, weight: MarkupWeight?) -> Bool {
+    private func restyleSelected(color: MarkupColor?, weight: MarkupWeight?, fontSize: MarkupFontSize?) -> Bool {
         guard let id = selectedMarkupID,
               let idx = markupItems.firstIndex(where: { $0.id == id }) else { return false }
         var item = markupItems[idx]
         if let color { item.color = color }
-        if let weight { item.weight = weight }
+        if let weight, !item.isText { item.weight = weight }
+        if let fontSize, item.isText { item.fontSize = fontSize }
         if item == markupItems[idx] { return true }
         stopSlideshow()
         pushUndo()

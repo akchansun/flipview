@@ -138,6 +138,11 @@ enum L10n {
         case weightRegular
         case weightThick
         case weightHeavy
+        case markupFontSize
+        case fontSmall
+        case fontRegular
+        case fontLarge
+        case fontExtra
         case textPlaceholder
         case noAppsToOpenWith
         case aboutApp
@@ -249,7 +254,12 @@ enum L10n {
         .weightRegular: "Medium",
         .weightThick: "Thick",
         .weightHeavy: "Extra thick",
-        .textPlaceholder: "Type here",
+        .markupFontSize: "Font size",
+        .fontSmall: "Small text",
+        .fontRegular: "Medium text",
+        .fontLarge: "Large text",
+        .fontExtra: "Extra large text",
+        .textPlaceholder: "Type here · double-click to edit",
         .dontSave: "Don’t Save",
         .couldNotSaveNamed: "Could not save “%@”.",
         .noAppsToOpenWith: "No Applications",
@@ -367,7 +377,12 @@ enum L10n {
         .weightRegular: "中",
         .weightThick: "粗",
         .weightHeavy: "特粗",
-        .textPlaceholder: "输入文字",
+        .markupFontSize: "文字大小",
+        .fontSmall: "小字",
+        .fontRegular: "中字",
+        .fontLarge: "大字",
+        .fontExtra: "特大字",
+        .textPlaceholder: "输入文字 · 再点一次或双击可改",
         .dontSave: "不存储",
         .couldNotSaveNamed: "无法存储“%@”。",
         .noAppsToOpenWith: "没有可用的应用程序",
