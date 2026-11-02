@@ -152,6 +152,34 @@ private struct FlipViewCommands: Commands {
 
             Divider()
 
+            Button(language.t(.crop)) {
+                if session.cropSelection != nil {
+                    session.applyCrop()
+                } else {
+                    session.setMarkupTool(.crop)
+                }
+            }
+            .keyboardShortcut("k", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Button(language.t(.adjustColor)) {
+                session.beginColorAdjust()
+            }
+            .disabled(!session.hasImage)
+
+            Button(language.t(.adjustSize)) {
+                session.showAdjustSize = true
+            }
+            .disabled(!session.hasImage)
+
+            Button(language.t(.inspector)) {
+                session.showInspector.toggle()
+            }
+            .keyboardShortcut("i", modifiers: .command)
+            .disabled(!session.hasImage)
+
+            Divider()
+
             Button(language.t(.toolBrowse)) {
                 session.setMarkupTool(.browse)
             }
@@ -166,6 +194,10 @@ private struct FlipViewCommands: Commands {
             .disabled(!session.hasImage)
             Button(language.t(.toolRect)) {
                 session.setMarkupTool(.rect)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolOval)) {
+                session.setMarkupTool(.oval)
             }
             .disabled(!session.hasImage)
             Button(language.t(.toolText)) {

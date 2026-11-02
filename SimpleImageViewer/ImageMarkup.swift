@@ -5,14 +5,23 @@ enum MarkupTool: String, CaseIterable {
     case pen
     case arrow
     case rect
+    case oval
     case text
+    case crop
 
     var isDrawing: Bool { self != .browse }
+
+    var isMarkupInk: Bool {
+        switch self {
+        case .pen, .arrow, .rect, .oval, .text: return true
+        case .browse, .crop: return false
+        }
+    }
 
     var cursor: NSCursor {
         switch self {
         case .browse: return .arrow
-        case .pen, .arrow, .rect: return .crosshair
+        case .pen, .arrow, .rect, .oval, .crop: return .crosshair
         case .text: return .iBeam
         }
     }
@@ -135,6 +144,7 @@ struct MarkupItem: Identifiable, Equatable {
         case stroke(points: [CGPoint])
         case arrow(start: CGPoint, end: CGPoint)
         case rect(start: CGPoint, end: CGPoint)
+        case oval(start: CGPoint, end: CGPoint)
         case text(origin: CGPoint, string: String)
     }
 
@@ -172,6 +182,8 @@ struct MarkupItem: Identifiable, Equatable {
             return with(kind: .arrow(start: map(start), end: map(end)))
         case .rect(let start, let end):
             return with(kind: .rect(start: map(start), end: map(end)))
+        case .oval(let start, let end):
+            return with(kind: .oval(start: map(start), end: map(end)))
         case .text(let origin, let string):
             return with(kind: .text(origin: map(origin), string: string))
         }
@@ -184,6 +196,13 @@ struct MarkupItem: Identifiable, Equatable {
             case .rotateLeft: return CGPoint(x: 1 - p.y, y: p.x)
             case .flipHorizontal: return CGPoint(x: 1 - p.x, y: p.y)
             case .flipVertical: return CGPoint(x: p.x, y: 1 - p.y)
+            case .crop(let rect):
+                let box = rect.standardized
+                let w = max(box.width, 0.0001)
+                let h = max(box.height, 0.0001)
+                return CGPoint(x: (p.x - box.minX) / w, y: (p.y - box.minY) / h)
+            case .color, .resize:
+                return p
             }
         }
         switch kind {
@@ -193,6 +212,8 @@ struct MarkupItem: Identifiable, Equatable {
             return with(kind: .arrow(start: map(start), end: map(end)))
         case .rect(let start, let end):
             return with(kind: .rect(start: map(start), end: map(end)))
+        case .oval(let start, let end):
+            return with(kind: .oval(start: map(start), end: map(end)))
         case .text(let origin, let string):
             return with(kind: .text(origin: map(origin), string: string))
         }
@@ -221,15 +242,9 @@ enum ImageMarkup {
             case .arrow(let start, let end):
                 drawArrow(from: denorm(start, in: imageRect), to: denorm(end, in: imageRect), context: ctx, line: line)
             case .rect(let start, let end):
-                let a = denorm(start, in: imageRect)
-                let b = denorm(end, in: imageRect)
-                let rect = CGRect(
-                    x: min(a.x, b.x),
-                    y: min(a.y, b.y),
-                    width: abs(a.x - b.x),
-                    height: abs(a.y - b.y)
-                )
-                ctx.stroke(rect)
+                ctx.stroke(denormRect(start, end, in: imageRect))
+            case .oval(let start, let end):
+                ctx.strokeEllipse(in: denormRect(start, end, in: imageRect))
             case .text(let origin, let string):
                 drawText(string, at: denorm(origin, in: imageRect), color: item.color.nsColor, imageRect: imageRect, fontSize: item.fontSize)
             }
@@ -289,11 +304,9 @@ enum ImageMarkup {
                 textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
             )
         case .rect(let start, let end):
-            let a = denorm(start, in: imageRect)
-            let b = denorm(end, in: imageRect)
-            let rect = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
-                .insetBy(dx: -outer, dy: -outer)
-            strokeDashedRect(ctx, rect)
+            strokeDashedRect(ctx, denormRect(start, end, in: imageRect).insetBy(dx: -outer, dy: -outer))
+        case .oval(let start, let end):
+            strokeDashedEllipse(ctx, denormRect(start, end, in: imageRect).insetBy(dx: -outer, dy: -outer))
         case .arrow(let start, let end):
             let path = arrowCGPath(
                 from: denorm(start, in: imageRect),
@@ -329,7 +342,7 @@ enum ImageMarkup {
 
     static func handles(for item: MarkupItem, in imageRect: CGRect) -> [(MarkupHandle, CGPoint)] {
         switch item.kind {
-        case .arrow(let start, let end), .rect(let start, let end):
+        case .arrow(let start, let end), .rect(let start, let end), .oval(let start, let end):
             return [(.start, denorm(start, in: imageRect)), (.end, denorm(end, in: imageRect))]
         default:
             return []
@@ -352,6 +365,8 @@ enum ImageMarkup {
             return item.with(kind: handle == .start ? .arrow(start: clamped, end: end) : .arrow(start: start, end: clamped))
         case .rect(let start, let end):
             return item.with(kind: handle == .start ? .rect(start: clamped, end: end) : .rect(start: start, end: clamped))
+        case .oval(let start, let end):
+            return item.with(kind: handle == .start ? .oval(start: clamped, end: end) : .oval(start: start, end: clamped))
         default:
             return item
         }
@@ -384,9 +399,7 @@ enum ImageMarkup {
             return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
                 .contains(point)
         case .rect(let start, let end):
-            let a = denorm(start, in: imageRect)
-            let b = denorm(end, in: imageRect)
-            let rect = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
+            let rect = denormRect(start, end, in: imageRect)
             let outer = rect.insetBy(dx: -tolerance, dy: -tolerance)
             guard outer.contains(point) else { return false }
             let inner = rect.insetBy(dx: tolerance, dy: tolerance)
@@ -394,6 +407,16 @@ enum ImageMarkup {
                 return true
             }
             return !inner.contains(point)
+        case .oval(let start, let end):
+            let rect = denormRect(start, end, in: imageRect)
+            if !ellipseContains(point, in: rect.insetBy(dx: -tolerance, dy: -tolerance)) {
+                return false
+            }
+            let inner = rect.insetBy(dx: tolerance, dy: tolerance)
+            if inner.width <= 0 || inner.height <= 0 {
+                return true
+            }
+            return !ellipseContains(point, in: inner)
         case .arrow(let start, let end):
             let from = denorm(start, in: imageRect)
             let to = denorm(end, in: imageRect)
@@ -426,7 +449,7 @@ enum ImageMarkup {
         switch item.kind {
         case .text(let origin, _):
             pts = [origin, CGPoint(x: origin.x + 0.08, y: origin.y + 0.04)]
-        case .rect(let start, let end), .arrow(let start, let end):
+        case .rect(let start, let end), .arrow(let start, let end), .oval(let start, let end):
             pts = [start, end]
         case .stroke(let points):
             pts = points
@@ -504,6 +527,41 @@ enum ImageMarkup {
 
     private static func denorm(_ p: CGPoint, in rect: CGRect) -> CGPoint {
         CGPoint(x: rect.minX + p.x * rect.width, y: rect.minY + p.y * rect.height)
+    }
+
+    private static func denormRect(_ start: CGPoint, _ end: CGPoint, in imageRect: CGRect) -> CGRect {
+        let a = denorm(start, in: imageRect)
+        let b = denorm(end, in: imageRect)
+        return CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
+    }
+
+    static func viewRect(from frac: CGRect, imageRect: CGRect) -> CGRect {
+        let box = frac.standardized
+        return CGRect(
+            x: imageRect.minX + box.minX * imageRect.width,
+            y: imageRect.minY + box.minY * imageRect.height,
+            width: box.width * imageRect.width,
+            height: box.height * imageRect.height
+        )
+    }
+
+    static func drawCropSelection(_ frac: CGRect, in imageRect: CGRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let box = viewRect(from: frac, imageRect: imageRect)
+        ctx.saveGState()
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.38).cgColor)
+        ctx.addRect(imageRect)
+        ctx.addRect(box)
+        ctx.drawPath(using: .eoFill)
+        strokeDashedRect(ctx, box)
+        ctx.restoreGState()
+    }
+
+    private static func ellipseContains(_ point: CGPoint, in rect: CGRect) -> Bool {
+        guard rect.width > 0.5, rect.height > 0.5 else { return rect.insetBy(dx: -1, dy: -1).contains(point) }
+        let nx = (point.x - rect.midX) / (rect.width / 2)
+        let ny = (point.y - rect.midY) / (rect.height / 2)
+        return nx * nx + ny * ny <= 1
     }
 
     private static func drawStroke(_ points: [CGPoint], in imageRect: CGRect, context ctx: CGContext, line: CGFloat) {

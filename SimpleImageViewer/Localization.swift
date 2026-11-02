@@ -131,7 +131,33 @@ enum L10n {
         case toolPen
         case toolArrow
         case toolRect
+        case toolOval
         case toolText
+        case toolCrop
+        case crop
+        case adjustColor
+        case adjustSize
+        case adjustWidth
+        case adjustHeight
+        case adjustKeepAspect
+        case adjustExposure
+        case adjustContrast
+        case adjustBrightness
+        case adjustSaturation
+        case adjustHighlights
+        case adjustShadows
+        case adjustTemperature
+        case adjustTint
+        case adjustSepia
+        case adjustSharpness
+        case adjustAutoLevels
+        case adjustReset
+        case inspector
+        case inspectorFile
+        case inspectorPixels
+        case inspectorBytes
+        case inspectorFormat
+        case inspectorColor
         case markupColor
         case markupWeight
         case weightThin
@@ -241,13 +267,39 @@ enum L10n {
         .printEllipsis: "Print…",
         .editedSuffix: "(Edited)",
         .unsavedTitle: "Save changes to this image?",
-        .unsavedMessageNamed: "“%@” has unsaved rotate, flip, or markup changes.",
-        .unsavedMessage: "This image has unsaved rotate, flip, or markup changes.",
+        .unsavedMessageNamed: "“%@” has unsaved edits.",
+        .unsavedMessage: "This image has unsaved edits.",
         .toolBrowse: "Browse",
         .toolPen: "Draw",
         .toolArrow: "Arrow",
         .toolRect: "Rectangle",
+        .toolOval: "Ellipse",
         .toolText: "Text",
+        .toolCrop: "Crop selection",
+        .crop: "Crop",
+        .adjustColor: "Adjust Color",
+        .adjustSize: "Adjust Size",
+        .adjustWidth: "Width",
+        .adjustHeight: "Height",
+        .adjustKeepAspect: "Scale proportionally",
+        .adjustExposure: "Exposure",
+        .adjustContrast: "Contrast",
+        .adjustBrightness: "Brightness",
+        .adjustSaturation: "Saturation",
+        .adjustHighlights: "Highlights",
+        .adjustShadows: "Shadows",
+        .adjustTemperature: "Temperature",
+        .adjustTint: "Tint",
+        .adjustSepia: "Sepia",
+        .adjustSharpness: "Sharpness",
+        .adjustAutoLevels: "Auto Levels",
+        .adjustReset: "Reset All",
+        .inspector: "Show Inspector",
+        .inspectorFile: "File",
+        .inspectorPixels: "Pixels",
+        .inspectorBytes: "Size",
+        .inspectorFormat: "Format",
+        .inspectorColor: "Color",
         .markupColor: "Markup color",
         .markupWeight: "Line width",
         .weightThin: "Thin",
@@ -364,13 +416,39 @@ enum L10n {
         .printEllipsis: "打印…",
         .editedSuffix: "（已编辑）",
         .unsavedTitle: "存储对此图片的更改？",
-        .unsavedMessageNamed: "“%@” 有未存储的旋转、翻转或标注。",
-        .unsavedMessage: "这张图片有未存储的旋转、翻转或标注。",
+        .unsavedMessageNamed: "“%@” 有未存储的更改。",
+        .unsavedMessage: "这张图片有未存储的更改。",
         .toolBrowse: "浏览",
         .toolPen: "画笔",
         .toolArrow: "箭头",
         .toolRect: "矩形",
+        .toolOval: "椭圆",
         .toolText: "文字",
+        .toolCrop: "框选裁剪",
+        .crop: "裁剪",
+        .adjustColor: "调整颜色",
+        .adjustSize: "调整大小",
+        .adjustWidth: "宽度",
+        .adjustHeight: "高度",
+        .adjustKeepAspect: "按比例缩放",
+        .adjustExposure: "曝光",
+        .adjustContrast: "对比度",
+        .adjustBrightness: "亮度",
+        .adjustSaturation: "饱和度",
+        .adjustHighlights: "高光",
+        .adjustShadows: "阴影",
+        .adjustTemperature: "色温",
+        .adjustTint: "色调",
+        .adjustSepia: "褐色",
+        .adjustSharpness: "锐度",
+        .adjustAutoLevels: "自动色阶",
+        .adjustReset: "全部还原",
+        .inspector: "显示检查器",
+        .inspectorFile: "文件",
+        .inspectorPixels: "像素",
+        .inspectorBytes: "大小",
+        .inspectorFormat: "格式",
+        .inspectorColor: "颜色",
         .markupColor: "标注颜色",
         .markupWeight: "线条粗细",
         .weightThin: "细",

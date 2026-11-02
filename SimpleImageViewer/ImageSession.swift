@@ -42,6 +42,11 @@ final class ImageSession: ObservableObject {
     @Published private(set) var selectedMarkupID: UUID?
     @Published private(set) var isEditingMarkupText = false
     @Published private(set) var markupItems: [MarkupItem] = []
+    @Published var cropSelection: CGRect?
+    @Published var showAdjustColor = false
+    @Published var showAdjustSize = false
+    @Published var showInspector = false
+    @Published var colorAdjust = ColorAdjust()
 
     let folderAccess = FolderAccess()
     /// Display-sized decode without rotate/flip. Replay `pendingOps` from this on undo.
@@ -53,6 +58,7 @@ final class ImageSession: ObservableObject {
     /// Decoded images kept warm for snappy ←/→.
     private let imageCache = NSCache<NSString, NSImage>()
     private var undoStack: [(ops: [ImageOp], marks: [MarkupItem])] = []
+    private var colorUndoPushed = false
 
     private var cacheConfigured = false
 
@@ -494,6 +500,9 @@ final class ImageSession: ObservableObject {
         }
         pushUndo()
         pendingOps.append(op)
+        if case .color(let adjust) = op {
+            colorAdjust = adjust
+        }
         markupItems = markupItems.map { $0.transformed(by: op) }
         currentImage = ImageEditing.apply(pendingOps, to: source)
         refreshDirty()
@@ -502,10 +511,110 @@ final class ImageSession: ObservableObject {
         }
     }
 
+    func applyCrop() {
+        guard let frac = cropSelection?.standardized, frac.width > 0.01, frac.height > 0.01 else { return }
+        apply(.crop(frac))
+        cropSelection = nil
+        markupTool = .browse
+    }
+
+    func setCropSelection(_ frac: CGRect?) {
+        cropSelection = frac?.standardized
+    }
+
+    func beginColorAdjust() {
+        colorUndoPushed = false
+        colorAdjust = currentColorAdjust()
+        showAdjustColor = true
+    }
+
+    func setColorAdjust(_ adjust: ColorAdjust) {
+        guard let source = sourceImage ?? currentImage else { return }
+        stopSlideshow()
+        if sourceImage == nil {
+            sourceImage = source
+        }
+        if !colorUndoPushed {
+            pushUndo()
+            colorUndoPushed = true
+        }
+        colorAdjust = adjust
+        if let idx = pendingOps.lastIndex(where: { if case .color = $0 { return true }; return false }) {
+            if adjust.isIdentity {
+                pendingOps.remove(at: idx)
+            } else {
+                pendingOps[idx] = .color(adjust)
+            }
+        } else if !adjust.isIdentity {
+            pendingOps.append(.color(adjust))
+        }
+        currentImage = pendingOps.isEmpty ? source : ImageEditing.apply(pendingOps, to: source)
+        refreshDirty()
+    }
+
+    func resetColorAdjust() {
+        setColorAdjust(ColorAdjust())
+    }
+
+    func applyResize(width: Int, height: Int) {
+        let w = max(1, width)
+        let h = max(1, height)
+        apply(.resize(width: w, height: h))
+        showAdjustSize = false
+    }
+
+    var displayedPixelSize: NSSize {
+        guard let image = currentImage else { return .zero }
+        return ImageLoader.pixelSize(of: image)
+    }
+
+    var inspectorRows: [(String, String)] {
+        let lang = LanguageManager.shared
+        var rows: [(String, String)] = []
+        if let url = currentURL {
+            rows.append((lang.t(.inspectorFile), url.lastPathComponent))
+            if let values = try? url.resourceValues(forKeys: [.fileSizeKey]), let size = values.fileSize {
+                rows.append((lang.t(.inspectorBytes), ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)))
+            }
+            rows.append((lang.t(.inspectorFormat), url.pathExtension.uppercased()))
+        }
+        let px = displayedPixelSize
+        if px.width > 0 {
+            rows.append((lang.t(.inspectorPixels), "\(Int(px.width)) × \(Int(px.height))"))
+        }
+        if let image = currentImage, let cg = ImageLoader.cgImage(from: image), let space = cg.colorSpace {
+            let name = (space.name as String?) ?? "RGB"
+            rows.append((lang.t(.inspectorColor), name))
+        }
+        return rows
+    }
+
+    func copyImage() {
+        guard let image = currentImage else { return }
+        var source = ImageMarkup.composite(image: image, items: markupItems)
+        if let frac = cropSelection?.standardized, frac.width > 0.01, frac.height > 0.01,
+           let cg = ImageLoader.cgImage(from: source),
+           let cropped = ImageEditing.apply(.crop(frac), to: cg) {
+            source = ImageLoader.image(from: cropped)
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([source])
+    }
+
+    private func currentColorAdjust() -> ColorAdjust {
+        for op in pendingOps.reversed() {
+            if case .color(let adjust) = op { return adjust }
+        }
+        return ColorAdjust()
+    }
+
     func setMarkupTool(_ tool: MarkupTool) {
         guard hasImage || tool == .browse else { return }
         if tool.isDrawing {
             stopSlideshow()
+        }
+        if tool != .crop {
+            cropSelection = nil
         }
         markupTool = tool
     }
@@ -596,6 +705,8 @@ final class ImageSession: ObservableObject {
         let opsChanged = prev.ops != pendingOps
         pendingOps = prev.ops
         markupItems = prev.marks
+        colorAdjust = currentColorAdjust()
+        cropSelection = nil
         if let id = selectedMarkupID, !markupItems.contains(where: { $0.id == id }) {
             selectedMarkupID = nil
         }
@@ -616,16 +727,12 @@ final class ImageSession: ObservableObject {
         selectedMarkupID = nil
         isEditingMarkupText = false
         markupTool = .browse
+        cropSelection = nil
+        colorAdjust = ColorAdjust()
+        colorUndoPushed = false
         currentImage = sourceImage
         refreshDirty()
         requestZoom(.fit)
-    }
-
-    func copyImage() {
-        guard let image = currentImage else { return }
-        let composite = ImageMarkup.composite(image: image, items: markupItems)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.writeObjects([composite])
     }
 
     @discardableResult
@@ -735,6 +842,9 @@ final class ImageSession: ObservableObject {
         isEditingMarkupText = false
         undoStack = []
         markupTool = .browse
+        cropSelection = nil
+        colorAdjust = ColorAdjust()
+        colorUndoPushed = false
         sourceImage = currentImage
         refreshDirty()
 
@@ -752,6 +862,9 @@ final class ImageSession: ObservableObject {
         isEditingMarkupText = false
         undoStack = []
         markupTool = .browse
+        cropSelection = nil
+        colorAdjust = ColorAdjust()
+        colorUndoPushed = false
         isDirty = false
         if !keepingImage {
             sourceImage = nil

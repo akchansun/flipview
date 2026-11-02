@@ -1,21 +1,43 @@
 import AppKit
+import CoreImage
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Lossless 90° rotate / flip ops. Replay on a full-resolution decode when saving
+/// Geometric / color ops. Replay on a full-resolution decode when saving
 /// so the on-screen display-sized bitmap is never written back to disk.
 enum ImageOp: Equatable {
     case rotateLeft
     case rotateRight
     case flipHorizontal
     case flipVertical
+    /// Normalized crop in image space, origin bottom-left, 0…1.
+    case crop(CGRect)
+    case color(ColorAdjust)
+    case resize(width: Int, height: Int)
 
     var swapsDimensions: Bool {
         switch self {
-        case .rotateLeft, .rotateRight: return true
-        case .flipHorizontal, .flipVertical: return false
+        case .rotateLeft, .rotateRight, .crop, .resize: return true
+        case .flipHorizontal, .flipVertical, .color: return false
         }
     }
+}
+
+/// Preview-style Adjust Color. Identity values leave the image unchanged.
+struct ColorAdjust: Equatable {
+    var exposure: Double = 0
+    var contrast: Double = 1
+    var brightness: Double = 0
+    var saturation: Double = 1
+    var highlights: Double = 1
+    var shadows: Double = 0
+    var temperature: Double = 0
+    var tint: Double = 0
+    var sepia: Double = 0
+    var sharpness: Double = 0
+    var autoLevels: Bool = false
+
+    var isIdentity: Bool { self == ColorAdjust() }
 }
 
 enum ImageEditError: Error {
@@ -47,13 +69,24 @@ enum ImageEditing {
     }
 
     static func apply(_ op: ImageOp, to image: CGImage) -> CGImage? {
+        switch op {
+        case .color(let adjust):
+            return applyColor(adjust, to: image)
+        case .crop(let frac):
+            return applyCrop(frac, to: image)
+        case .resize(let width, let height):
+            return applyResize(to: image, width: width, height: height)
+        case .rotateLeft, .rotateRight, .flipHorizontal, .flipVertical:
+            break
+        }
+
         let width = image.width
         let height = image.height
         let canvas: (width: Int, height: Int)
         switch op {
         case .rotateLeft, .rotateRight:
             canvas = (height, width)
-        case .flipHorizontal, .flipVertical:
+        default:
             canvas = (width, height)
         }
 
@@ -75,6 +108,8 @@ enum ImageEditing {
         case .flipVertical:
             ctx.translateBy(x: 0, y: CGFloat(height))
             ctx.scaleBy(x: 1, y: -1)
+        case .crop, .color, .resize:
+            break
         }
 
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
@@ -193,6 +228,85 @@ enum ImageEditing {
         operation.showsPrintPanel = true
         operation.showsProgressPanel = true
         operation.run()
+    }
+
+    private static let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+
+    private static func applyCrop(_ frac: CGRect, to image: CGImage) -> CGImage? {
+        let normalized = frac.standardized
+        guard normalized.width > 0.002, normalized.height > 0.002 else { return image }
+        let w = CGFloat(image.width)
+        let h = CGFloat(image.height)
+        let pixel = CGRect(
+            x: normalized.minX * w,
+            y: (1 - normalized.maxY) * h,
+            width: normalized.width * w,
+            height: normalized.height * h
+        ).integral
+        guard pixel.width >= 1, pixel.height >= 1 else { return image }
+        return image.cropping(to: pixel) ?? image
+    }
+
+    private static func applyResize(to image: CGImage, width: Int, height: Int) -> CGImage? {
+        let w = max(1, width)
+        let h = max(1, height)
+        guard let ctx = makeContext(width: w, height: h, matching: image) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return ctx.makeImage()
+    }
+
+    private static func applyColor(_ adjust: ColorAdjust, to image: CGImage) -> CGImage? {
+        guard !adjust.isIdentity else { return image }
+        var current = CIImage(cgImage: image)
+        if adjust.autoLevels {
+            for filter in current.autoAdjustmentFilters(options: [.enhance: true]) {
+                filter.setValue(current, forKey: kCIInputImageKey)
+                if let out = filter.outputImage { current = out }
+            }
+        }
+        if abs(adjust.exposure) > 0.0001, let filter = CIFilter(name: "CIExposureAdjust") {
+            filter.setValue(current, forKey: kCIInputImageKey)
+            filter.setValue(adjust.exposure, forKey: kCIInputEVKey)
+            if let out = filter.outputImage { current = out }
+        }
+        if abs(adjust.contrast - 1) > 0.0001 || abs(adjust.saturation - 1) > 0.0001 || abs(adjust.brightness) > 0.0001,
+           let filter = CIFilter(name: "CIColorControls") {
+            filter.setValue(current, forKey: kCIInputImageKey)
+            filter.setValue(adjust.contrast, forKey: kCIInputContrastKey)
+            filter.setValue(adjust.saturation, forKey: kCIInputSaturationKey)
+            filter.setValue(adjust.brightness, forKey: kCIInputBrightnessKey)
+            if let out = filter.outputImage { current = out }
+        }
+        if abs(adjust.highlights - 1) > 0.0001 || abs(adjust.shadows) > 0.0001,
+           let filter = CIFilter(name: "CIHighlightShadowAdjust") {
+            filter.setValue(current, forKey: kCIInputImageKey)
+            filter.setValue(adjust.highlights, forKey: "inputHighlightAmount")
+            filter.setValue(adjust.shadows, forKey: "inputShadowAmount")
+            if let out = filter.outputImage { current = out }
+        }
+        if abs(adjust.temperature) > 0.0001 || abs(adjust.tint) > 0.0001,
+           let filter = CIFilter(name: "CITemperatureAndTint") {
+            filter.setValue(current, forKey: kCIInputImageKey)
+            filter.setValue(CIVector(x: 6500, y: 0), forKey: "inputNeutral")
+            filter.setValue(
+                CIVector(x: 6500 - adjust.temperature * 1800, y: adjust.tint * 80),
+                forKey: "inputTargetNeutral"
+            )
+            if let out = filter.outputImage { current = out }
+        }
+        if adjust.sepia > 0.0001, let filter = CIFilter(name: "CISepiaTone") {
+            filter.setValue(current, forKey: kCIInputImageKey)
+            filter.setValue(adjust.sepia, forKey: kCIInputIntensityKey)
+            if let out = filter.outputImage { current = out }
+        }
+        if adjust.sharpness > 0.0001, let filter = CIFilter(name: "CISharpenLuminance") {
+            filter.setValue(current, forKey: kCIInputImageKey)
+            filter.setValue(adjust.sharpness, forKey: kCIInputSharpnessKey)
+            if let out = filter.outputImage { current = out }
+        }
+        let extent = current.extent.integral
+        return ciContext.createCGImage(current, from: extent) ?? image
     }
 
     private static func makeContext(width: Int, height: Int, matching image: CGImage) -> CGContext? {

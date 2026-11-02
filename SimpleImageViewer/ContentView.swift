@@ -18,6 +18,11 @@ struct ContentView: View {
             session.open(url)
         }
         .onDrop(of: [.fileURL], isTargeted: $session.isDropTargeted, perform: handleDrop)
+        .sheet(isPresented: $session.showAdjustSize) {
+            AdjustSizeSheet()
+                .environmentObject(session)
+                .environmentObject(language)
+        }
         .alert(language.t(.moveToTrashQuestion), isPresented: $session.showDeleteConfirm) {
             Button(language.t(.moveToTrash), role: .destructive) {
                 session.deleteCurrent()
@@ -83,7 +88,10 @@ struct ContentView: View {
                     onReplaceMarkup: { session.replaceMarkup($0) },
                     onRemoveMarkup: { session.removeMarkup(id: $0) },
                     onSelectMarkup: { session.selectMarkup(id: $0) },
-                    onMarkupTextEditing: { session.setMarkupTextEditing($0) }
+                    onMarkupTextEditing: { session.setMarkupTextEditing($0) },
+                    cropSelection: session.cropSelection,
+                    onCropSelection: { session.setCropSelection($0) },
+                    onApplyCrop: { session.applyCrop() }
                 )
             } else {
                 EmptyStateView()

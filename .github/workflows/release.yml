@@ -22,8 +22,8 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           ## 新功能
-          - 顶部工具条：翻页、缩放、旋转翻转、画笔 / 箭头 / 矩形 / 文字、颜色、线宽、字号、存储、打印
-          - 已有文字可再点编辑、改字号；标注可选中后拖动、改色改粗细，箭头/矩形可拉伸
+          - 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器、画笔 / 箭头 / 矩形 / 椭圆 / 文字、颜色、线宽、字号、存储、打印
+          - 已有文字可再点编辑、改字号；标注可选中后拖动、改色改粗细，箭头/矩形/椭圆可拉伸
           - 向左 / 向右旋转 90°（⌘L / ⌘R）、水平 / 垂直翻转
           - 拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）
 
@@ -36,8 +36,9 @@ jobs:
           - 访达双击打开后窗口到最前
 
           ## What’s new
+          - Crop, Adjust Color, Adjust Size, and Inspector so you can stay in Flip instead of switching to Preview
           - Thinnest markup is a hairline; hit-test and selection hug the ink, not a padded box
-          - Top toolbar with rotate, flip, draw, arrow, rectangle, text, color, and line width
+          - Top toolbar with rotate, flip, draw, arrow, rectangle, ellipse, text, color, and line width
           - Existing text can be edited again; markup can be selected, dragged, recolored, and resized
           - Undo follows real actions; Delete removes selected markup instead of the file
           - Copy, Save / Save As at full resolution, Print

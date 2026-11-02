@@ -34,6 +34,9 @@ struct ZoomableImageView: NSViewRepresentable {
     var onRemoveMarkup: (UUID) -> Void = { _ in }
     var onSelectMarkup: (UUID?) -> Void = { _ in }
     var onMarkupTextEditing: (Bool) -> Void = { _ in }
+    var cropSelection: CGRect? = nil
+    var onCropSelection: (CGRect?) -> Void = { _ in }
+    var onApplyCrop: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -66,6 +69,9 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.markupColor = markupColor
         host.overlay.markupWeight = markupWeight
         host.overlay.markupFontSize = markupFontSize
+        if host.overlay.cropSelection != cropSelection {
+            host.overlay.cropSelection = cropSelection
+        }
         host.overlay.syncCanvas()
         host.window?.invalidateCursorRects(for: host.overlay)
     }
@@ -98,6 +104,8 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.onRemoveMarkup = onRemoveMarkup
         host.overlay.onSelectMarkup = onSelectMarkup
         host.overlay.onMarkupTextEditing = onMarkupTextEditing
+        host.overlay.onCropSelection = onCropSelection
+        host.overlay.onApplyCrop = onApplyCrop
         host.overlay.markupCanvas = host.scrollView.markupCanvas
         host.overlay.imageRectInOverlay = { [weak host] in
             guard let host else { return .zero }
@@ -108,6 +116,9 @@ struct ZoomableImageView: NSViewRepresentable {
         }
         host.scrollView.onEscapeMarkup = { [weak host] in
             host?.overlay.handleMarkupEscape() ?? false
+        }
+        host.scrollView.onReturnMarkup = { [weak host] in
+            host?.overlay.handleMarkupReturn() ?? false
         }
         host.scrollView.onLayout = { [weak host] in
             host?.overlay.repositionTextEditor()
@@ -184,7 +195,7 @@ final class ImageViewerHostView: NSView {
             NSCursor.closedHand.set()
             return
         }
-        if overlay.isHoveringMarkup(atWindowPoint: point) {
+        if overlay.markupTool != .crop, overlay.isHoveringMarkup(atWindowPoint: point) {
             NSCursor.openHand.set()
             return
         }
@@ -241,6 +252,8 @@ final class PageHitOverlay: NSView {
     var onRemoveMarkup: ((UUID) -> Void)?
     var onSelectMarkup: ((UUID?) -> Void)?
     var onMarkupTextEditing: ((Bool) -> Void)?
+    var onCropSelection: ((CGRect?) -> Void)?
+    var onApplyCrop: (() -> Void)?
     var imageRectInOverlay: (() -> NSRect)?
     weak var markupCanvas: MarkupCanvasView?
     var markupItems: [MarkupItem] = [] {
@@ -259,7 +272,12 @@ final class PageHitOverlay: NSView {
             if oldValue == .text, markupTool != .text {
                 commitTextEditor()
             }
+            if markupTool != .crop, cropSelection != nil {
+                cropSelection = nil
+                onCropSelection?(nil)
+            }
             window?.invalidateCursorRects(for: self)
+            needsDisplay = true
         }
     }
     var markupColor: MarkupColor = .red {
@@ -300,6 +318,9 @@ final class PageHitOverlay: NSView {
     private var editingColor: MarkupColor?
     private var editingWeight: MarkupWeight?
     private var editingFontSize: MarkupFontSize?
+    var cropSelection: CGRect? {
+        didSet { needsDisplay = true }
+    }
 
     var isMovingMarkup: Bool { movingOriginal != nil }
     var isResizingMarkup: Bool { resizeOriginal != nil }
@@ -334,6 +355,14 @@ final class PageHitOverlay: NSView {
         )
     }
 
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard markupTool == .crop, let cropSelection else { return }
+        let imageRect = imageRectInOverlay?() ?? .zero
+        guard imageRect.width > 1 else { return }
+        ImageMarkup.drawCropSelection(cropSelection, in: imageRect)
+    }
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         if let editor = textEditor, !editor.isHidden, editor.frame.contains(point) {
             return editor.hitTest(convert(point, to: editor)) ?? editor
@@ -361,6 +390,8 @@ final class PageHitOverlay: NSView {
         draft = nil
         movingOriginal = nil
         dragStartFrac = nil
+        cropSelection = nil
+        onCropSelection?(nil)
         editingItemID = nil
         editingColor = nil
         editingWeight = nil
@@ -395,7 +426,21 @@ final class PageHitOverlay: NSView {
             syncCanvas()
             return true
         }
+        if cropSelection != nil {
+            cropSelection = nil
+            onCropSelection?(nil)
+            return true
+        }
         return false
+    }
+
+    @discardableResult
+    func handleMarkupReturn() -> Bool {
+        guard markupTool == .crop, let box = cropSelection?.standardized, box.width > 0.01, box.height > 0.01 else {
+            return false
+        }
+        onApplyCrop?()
+        return true
     }
 
     @discardableResult
@@ -434,6 +479,16 @@ final class PageHitOverlay: NSView {
         selectedBeforeClick = selectedID
         resizeOriginal = nil
         resizeHandle = nil
+        if markupTool == .crop {
+            selectedID = nil
+            movingOriginal = nil
+            guard let frac = imageFraction(for: event) else { return true }
+            dragStartFrac = frac
+            cropSelection = CGRect(origin: frac, size: .zero)
+            onCropSelection?(cropSelection)
+            needsDisplay = true
+            return true
+        }
         let imageRect = imageRectInOverlay?() ?? .zero
         let local = convert(event.locationInWindow, from: nil)
         if let selected = markupItems.first(where: { $0.id == selectedID }),
@@ -485,6 +540,10 @@ final class PageHitOverlay: NSView {
             draft = MarkupItem(color: markupColor, weight: markupWeight, fontSize: markupFontSize, kind: .arrow(start: frac, end: frac))
         case .rect:
             draft = MarkupItem(color: markupColor, weight: markupWeight, fontSize: markupFontSize, kind: .rect(start: frac, end: frac))
+        case .oval:
+            draft = MarkupItem(color: markupColor, weight: markupWeight, fontSize: markupFontSize, kind: .oval(start: frac, end: frac))
+        case .crop:
+            break
         case .text:
             beginTextEditor(at: frac, existing: nil)
             dragStartFrac = nil
@@ -502,6 +561,18 @@ final class PageHitOverlay: NSView {
             draft = ImageMarkup.resized(original, handle: handle, to: frac)
             selectedID = original.id
             syncCanvas()
+            return true
+        }
+        if markupTool == .crop, let start = dragStartFrac {
+            guard let frac = imageFraction(for: event) else { return true }
+            cropSelection = CGRect(
+                x: min(start.x, frac.x),
+                y: min(start.y, frac.y),
+                width: abs(frac.x - start.x),
+                height: abs(frac.y - start.y)
+            )
+            onCropSelection?(cropSelection)
+            needsDisplay = true
             return true
         }
         if let original = movingOriginal, let start = dragStartFrac {
@@ -540,6 +611,11 @@ final class PageHitOverlay: NSView {
                 current.kind = .rect(start: start, end: frac)
                 draft = current
             }
+        case .oval:
+            if var current = draft {
+                current.kind = .oval(start: start, end: frac)
+                draft = current
+            }
         default:
             break
         }
@@ -564,6 +640,15 @@ final class PageHitOverlay: NSView {
             hiddenID = nil
             self.draft = nil
             syncCanvas()
+            return true
+        }
+        if markupTool == .crop {
+            if let box = cropSelection?.standardized, box.width < 0.01 || box.height < 0.01 {
+                cropSelection = nil
+                onCropSelection?(nil)
+            }
+            dragStartFrac = nil
+            needsDisplay = true
             return true
         }
         if let original = movingOriginal {
@@ -619,7 +704,7 @@ final class PageHitOverlay: NSView {
         switch item.kind {
         case .stroke(let points):
             return !points.isEmpty
-        case .arrow(let start, let end), .rect(let start, let end):
+        case .arrow(let start, let end), .rect(let start, let end), .oval(let start, let end):
             let dx = end.x - start.x
             let dy = end.y - start.y
             return (dx * dx + dy * dy) > 0.0002
@@ -947,6 +1032,7 @@ final class ImageScrollView: NSScrollView {
     var onLayout: (() -> Void)?
     var onDeleteMarkup: (() -> Bool)?
     var onEscapeMarkup: (() -> Bool)?
+    var onReturnMarkup: (() -> Bool)?
     let markupCanvas = MarkupCanvasView()
 
     var isFittingMode: Bool { isFitting }
@@ -1269,6 +1355,9 @@ final class ImageScrollView: NSScrollView {
         case 53:
             if onEscapeMarkup?() == true { return }
             onEscape?()
+        case 36, 76:
+            if onReturnMarkup?() == true { return }
+            super.keyDown(with: event)
         default: super.keyDown(with: event)
         }
     }
