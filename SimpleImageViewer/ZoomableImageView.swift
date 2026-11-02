@@ -444,10 +444,6 @@ final class PageHitOverlay: NSView {
         onSwipe?(event)
     }
 
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        bounds.contains(point) ? self : nil
-    }
-
     private func buildContextMenu() -> NSMenu {
         let lang = LanguageManager.shared
         let menu = NSMenu()
