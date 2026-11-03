@@ -22,8 +22,10 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           ## 新功能
-          - 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器、画笔 / 箭头 / 矩形 / 椭圆 / 文字、颜色、线宽、字号、存储、打印
-          - 已有文字可再点编辑、改字号；标注可选中后拖动、改色改粗细，箭头/矩形/椭圆可拉伸
+          - 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器 / 移除背景、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、颜色、线宽、字号、存储、打印
+          - 裁剪可拖八个点、移动选区、Shift 正方形、显示像素尺寸；⌘A 全选，回车或双击裁切
+          - 已有文字可再点编辑、改字号；标注可选中后拖动、改色改粗细改填充，形状可拉伸
+          - 从剪贴板新建（⌘N）；检查器含 DPI / 相机 / 曝光
           - 向左 / 向右旋转 90°（⌘L / ⌘R）、水平 / 垂直翻转
           - 拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）
 
@@ -37,10 +39,13 @@ jobs:
           - 访达双击打开后窗口到最前
 
           ## What’s new
+          - Preview-style crop: eight handles, move the box, Shift for square, live pixel size, ⌘A, Return / double-click to crop
+          - Line, rounded rectangle, highlight, fill vs stroke; Shift constrains square / circle / 45°
+          - New from Clipboard (⌘N); Remove Background; inspector shows DPI, camera, and exposure
           - Click text once to edit; the field matches the drawn size instead of a huge box
           - Crop, Adjust Color, Adjust Size, and Inspector so you can stay in Flip instead of switching to Preview
           - Thinnest markup is a hairline; hit-test and selection hug the ink, not a padded box
-          - Top toolbar with rotate, flip, draw, arrow, rectangle, ellipse, text, color, and line width
+          - Top toolbar with rotate, flip, draw, line, arrow, rectangle, ellipse, highlight, text, color, and line width
           - Existing text can be edited again; markup can be selected, dragged, recolored, and resized
           - Undo follows real actions; Delete removes selected markup instead of the file
           - Copy, Save / Save As at full resolution, Print

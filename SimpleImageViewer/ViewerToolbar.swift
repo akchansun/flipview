@@ -112,6 +112,9 @@ struct ViewerToolbarBar: View {
                             .environmentObject(session)
                             .environmentObject(language)
                     }
+                    iconButton("person.fill.viewfinder", key: .removeBackground) {
+                        session.removeBackground()
+                    }
                 }
 
                 hairline
@@ -119,12 +122,16 @@ struct ViewerToolbarBar: View {
                 group {
                     toolButton(.browse, symbol: "hand.point.up.left", key: .toolBrowse)
                     toolButton(.pen, symbol: "pencil", key: .toolPen)
+                    toolButton(.line, symbol: "line.diagonal", key: .toolLine)
                     toolButton(.arrow, symbol: "arrow.up.right", key: .toolArrow)
                     toolButton(.rect, symbol: "rectangle", key: .toolRect)
+                    toolButton(.roundRect, symbol: "rectangle.roundedtop", key: .toolRoundRect)
                     toolButton(.oval, symbol: "oval", key: .toolOval)
+                    toolButton(.highlight, symbol: "highlighter", key: .toolHighlight)
                     toolButton(.text, symbol: "textformat", key: .toolText)
                 }
 
+                fillToggle
                 colorDots
                 weightButtons
                 fontSizeButtons
@@ -191,6 +198,27 @@ struct ViewerToolbarBar: View {
         .buttonStyle(.plain)
         .help(language.t(key))
         .disabled(!session.hasImage || !enabled)
+    }
+
+    private var fillToggle: some View {
+        let selectedCanFill = session.markupItems.first(where: { $0.id == session.selectedMarkupID })?.canFill == true
+        let enabled = session.hasImage && (session.markupTool.canFill || selectedCanFill)
+        return Button {
+            session.setMarkupFilled(!session.markupFilled)
+        } label: {
+            Image(systemName: session.markupFilled ? "square.fill" : "square")
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 24)
+                .background(
+                    session.markupFilled ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(language.t(session.markupFilled ? .markupFill : .markupStroke))
+        .disabled(!enabled)
+        .padding(.leading, 4)
     }
 
     private var colorDots: some View {
@@ -344,7 +372,7 @@ private struct InspectorPopover: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(row.0)
                         .foregroundStyle(.secondary)
-                        .frame(width: 72, alignment: .trailing)
+                        .frame(width: 84, alignment: .trailing)
                     Text(row.1)
                         .textSelection(.enabled)
                 }
@@ -352,7 +380,7 @@ private struct InspectorPopover: View {
             }
         }
         .padding(14)
-        .frame(minWidth: 240, alignment: .leading)
+        .frame(minWidth: 280, alignment: .leading)
     }
 }
 
@@ -361,8 +389,11 @@ struct AdjustSizeSheet: View {
     @EnvironmentObject private var language: LanguageManager
     @State private var widthText = ""
     @State private var heightText = ""
+    @State private var percentText = "100"
     @State private var keepAspect = true
     @State private var aspect: CGFloat = 1
+    @State private var original = NSSize.zero
+    @State private var syncingSize = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -375,6 +406,8 @@ struct AdjustSizeSheet: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 90)
                     .onChange(of: widthText) { _, new in
+                        guard !syncingSize else { return }
+                        syncPercentFromWidth(new)
                         guard keepAspect, let w = Double(new), w > 0, aspect > 0 else { return }
                         let next = String(max(1, Int((w / Double(aspect)).rounded())))
                         if next != heightText { heightText = next }
@@ -389,15 +422,34 @@ struct AdjustSizeSheet: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 90)
                     .onChange(of: heightText) { _, new in
+                        guard !syncingSize else { return }
                         guard keepAspect, let h = Double(new), h > 0, aspect > 0 else { return }
                         let next = String(max(1, Int((h * Double(aspect)).rounded())))
                         if next != widthText { widthText = next }
+                        syncPercentFromWidth(next)
                     }
                 Text("px")
                     .foregroundStyle(.secondary)
             }
+            HStack {
+                Text(language.t(.adjustPercent))
+                    .frame(width: 56, alignment: .trailing)
+                TextField("", text: $percentText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 90)
+                    .onChange(of: percentText) { _, new in
+                        applyPercent(new)
+                    }
+                Text("%")
+                    .foregroundStyle(.secondary)
+            }
             Toggle(language.t(.adjustKeepAspect), isOn: $keepAspect)
                 .toggleStyle(.checkbox)
+            if let dpi = session.sourceDPILabel {
+                Text("\(language.t(.inspectorDPI)): \(dpi)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             HStack {
                 ForEach([640, 1024, 1920], id: \.self) { preset in
                     Button("\(preset)") {
@@ -405,9 +457,10 @@ struct AdjustSizeSheet: View {
                     }
                 }
                 Button("50%") {
-                    let px = session.displayedPixelSize
-                    widthText = String(max(1, Int(px.width / 2)))
-                    heightText = String(max(1, Int(px.height / 2)))
+                    applyPercent("50")
+                }
+                Button("100%") {
+                    applyPercent("100")
                 }
             }
             .buttonStyle(.bordered)
@@ -428,17 +481,41 @@ struct AdjustSizeSheet: View {
         .frame(width: 340)
         .onAppear {
             let px = session.displayedPixelSize
+            original = px
             widthText = String(Int(px.width))
             heightText = String(Int(px.height))
+            percentText = "100"
             aspect = px.height > 0 ? px.width / px.height : 1
         }
     }
 
     private func applyPreset(_ longest: Int) {
-        let px = session.displayedPixelSize
+        let px = original.width > 0 ? original : session.displayedPixelSize
         guard px.width > 0, px.height > 0 else { return }
         let scale = CGFloat(longest) / max(px.width, px.height)
+        syncingSize = true
         widthText = String(max(1, Int((px.width * scale).rounded())))
         heightText = String(max(1, Int((px.height * scale).rounded())))
+        percentText = String(max(1, Int((scale * 100).rounded())))
+        syncingSize = false
+    }
+
+    private func applyPercent(_ raw: String) {
+        guard !syncingSize, let p = Double(raw), p > 0, original.width > 0, original.height > 0 else { return }
+        syncingSize = true
+        percentText = raw
+        widthText = String(max(1, Int((original.width * p / 100).rounded())))
+        heightText = String(max(1, Int((original.height * p / 100).rounded())))
+        syncingSize = false
+    }
+
+    private func syncPercentFromWidth(_ raw: String) {
+        guard original.width > 0, let w = Double(raw), w > 0 else { return }
+        let next = String(max(1, Int((w / Double(original.width) * 100).rounded())))
+        if next != percentText {
+            syncingSize = true
+            percentText = next
+            syncingSize = false
+        }
     }
 }

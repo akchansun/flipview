@@ -84,6 +84,8 @@ struct ContentView: View {
                     markupColor: session.markupColor,
                     markupWeight: session.markupWeight,
                     markupFontSize: session.markupFontSize,
+                    markupFilled: session.markupFilled,
+                    imagePixelSize: session.displayedPixelSize,
                     onAddMarkup: { session.addMarkup($0) },
                     onReplaceMarkup: { session.replaceMarkup($0) },
                     onRemoveMarkup: { session.removeMarkup(id: $0) },
@@ -212,6 +214,10 @@ private struct EmptyStateView: View {
 
                 Button(language.t(.openFolder)) {
                     session.openPanelForFolder()
+                }
+
+                Button(language.t(.newFromClipboard)) {
+                    session.newFromClipboard()
                 }
             }
             .padding(.top, 4)

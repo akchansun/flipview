@@ -129,11 +129,22 @@ enum L10n {
         case couldNotSaveNamed
         case toolBrowse
         case toolPen
+        case toolLine
         case toolArrow
         case toolRect
+        case toolRoundRect
         case toolOval
+        case toolHighlight
         case toolText
         case toolCrop
+        case markupFill
+        case markupStroke
+        case removeBackground
+        case newFromClipboard
+        case untitledImage
+        case clipboardEmpty
+        case selectAll
+        case adjustPercent
         case crop
         case adjustColor
         case adjustSize
@@ -158,6 +169,12 @@ enum L10n {
         case inspectorBytes
         case inspectorFormat
         case inspectorColor
+        case inspectorDPI
+        case inspectorProfile
+        case inspectorCamera
+        case inspectorLens
+        case inspectorExposure
+        case inspectorCaptured
         case markupColor
         case markupWeight
         case weightThin
@@ -239,7 +256,7 @@ enum L10n {
         .allow: "Allow",
         .openImageToStart: "Open an image to start",
         .openImageHint: "File → Open Image…, drop a file on this window, or use Finder’s Open With.",
-        .shortcutsHint: "← → / swipe / click sides    ·    ⌘O  open    ·    ⌘L/R  rotate    ·    ⌘P  print",
+        .shortcutsHint: "← → / swipe / click sides    ·    ⌘O  open    ·    ⌘K  crop    ·    ⌘N  clipboard    ·    ⌘L/R  rotate    ·    ⌘P  print",
         .chooseImageMessage: "Choose an image to view",
         .chooseFolderMessage: "Choose a folder of images",
         .open: "Open",
@@ -271,11 +288,22 @@ enum L10n {
         .unsavedMessage: "This image has unsaved edits.",
         .toolBrowse: "Browse",
         .toolPen: "Draw",
+        .toolLine: "Line",
         .toolArrow: "Arrow",
         .toolRect: "Rectangle",
+        .toolRoundRect: "Rounded Rectangle",
         .toolOval: "Ellipse",
+        .toolHighlight: "Highlight",
         .toolText: "Text",
         .toolCrop: "Crop selection",
+        .markupFill: "Fill",
+        .markupStroke: "Stroke",
+        .removeBackground: "Remove Background",
+        .newFromClipboard: "New from Clipboard",
+        .untitledImage: "Untitled",
+        .clipboardEmpty: "Clipboard has no image.",
+        .selectAll: "Select All",
+        .adjustPercent: "Percent",
         .crop: "Crop",
         .adjustColor: "Adjust Color",
         .adjustSize: "Adjust Size",
@@ -300,6 +328,12 @@ enum L10n {
         .inspectorBytes: "Size",
         .inspectorFormat: "Format",
         .inspectorColor: "Color",
+        .inspectorDPI: "DPI",
+        .inspectorProfile: "Profile",
+        .inspectorCamera: "Camera",
+        .inspectorLens: "Lens",
+        .inspectorExposure: "Exposure",
+        .inspectorCaptured: "Captured",
         .markupColor: "Markup color",
         .markupWeight: "Line width",
         .weightThin: "Thin",
@@ -388,7 +422,7 @@ enum L10n {
         .allow: "允许",
         .openImageToStart: "打开一张图片开始浏览",
         .openImageHint: "菜单「文件 → 打开图片…」、把文件拖进窗口，或用访达「打开方式」。",
-        .shortcutsHint: "← → / 滑动 / 点左右两侧    ·    ⌘O  打开    ·    ⌘L/R  旋转    ·    ⌘P  打印",
+        .shortcutsHint: "← → / 滑动 / 点左右两侧    ·    ⌘O  打开    ·    ⌘K  裁剪    ·    ⌘N  剪贴板    ·    ⌘L/R  旋转    ·    ⌘P  打印",
         .chooseImageMessage: "选择要查看的图片",
         .chooseFolderMessage: "选择包含图片的文件夹",
         .open: "打开",
@@ -420,11 +454,22 @@ enum L10n {
         .unsavedMessage: "这张图片有未存储的更改。",
         .toolBrowse: "浏览",
         .toolPen: "画笔",
+        .toolLine: "直线",
         .toolArrow: "箭头",
         .toolRect: "矩形",
+        .toolRoundRect: "圆角矩形",
         .toolOval: "椭圆",
+        .toolHighlight: "高亮",
         .toolText: "文字",
         .toolCrop: "框选裁剪",
+        .markupFill: "填充",
+        .markupStroke: "描边",
+        .removeBackground: "移除背景",
+        .newFromClipboard: "从剪贴板新建",
+        .untitledImage: "未命名",
+        .clipboardEmpty: "剪贴板里没有图片。",
+        .selectAll: "全选",
+        .adjustPercent: "百分比",
         .crop: "裁剪",
         .adjustColor: "调整颜色",
         .adjustSize: "调整大小",
@@ -449,6 +494,12 @@ enum L10n {
         .inspectorBytes: "大小",
         .inspectorFormat: "格式",
         .inspectorColor: "颜色",
+        .inspectorDPI: "分辨率",
+        .inspectorProfile: "描述文件",
+        .inspectorCamera: "相机",
+        .inspectorLens: "镜头",
+        .inspectorExposure: "曝光",
+        .inspectorCaptured: "拍摄时间",
         .markupColor: "标注颜色",
         .markupWeight: "线条粗细",
         .weightThin: "细",

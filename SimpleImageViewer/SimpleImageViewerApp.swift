@@ -64,6 +64,11 @@ private struct FlipFileCommands: Commands {
                 session.openPanelForFolder()
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
+
+            Button(language.t(.newFromClipboard)) {
+                session.newFromClipboard()
+            }
+            .keyboardShortcut("n", modifiers: .command)
         }
 
         CommandGroup(after: .newItem) {
@@ -115,6 +120,12 @@ private struct FlipFileCommands: Commands {
             Button(language.t(.copyPath)) {
                 session.copyCurrentPath()
             }
+            .disabled(!session.hasImage)
+
+            Button(language.t(.selectAll)) {
+                session.selectEntireImage()
+            }
+            .keyboardShortcut("a", modifiers: .command)
             .disabled(!session.hasImage)
         }
     }
@@ -178,6 +189,11 @@ private struct FlipViewCommands: Commands {
             .keyboardShortcut("i", modifiers: .command)
             .disabled(!session.hasImage)
 
+            Button(language.t(.removeBackground)) {
+                session.removeBackground()
+            }
+            .disabled(!session.hasImage)
+
             Divider()
 
             Button(language.t(.toolBrowse)) {
@@ -188,6 +204,10 @@ private struct FlipViewCommands: Commands {
                 session.setMarkupTool(.pen)
             }
             .disabled(!session.hasImage)
+            Button(language.t(.toolLine)) {
+                session.setMarkupTool(.line)
+            }
+            .disabled(!session.hasImage)
             Button(language.t(.toolArrow)) {
                 session.setMarkupTool(.arrow)
             }
@@ -196,8 +216,16 @@ private struct FlipViewCommands: Commands {
                 session.setMarkupTool(.rect)
             }
             .disabled(!session.hasImage)
+            Button(language.t(.toolRoundRect)) {
+                session.setMarkupTool(.roundRect)
+            }
+            .disabled(!session.hasImage)
             Button(language.t(.toolOval)) {
                 session.setMarkupTool(.oval)
+            }
+            .disabled(!session.hasImage)
+            Button(language.t(.toolHighlight)) {
+                session.setMarkupTool(.highlight)
             }
             .disabled(!session.hasImage)
             Button(language.t(.toolText)) {

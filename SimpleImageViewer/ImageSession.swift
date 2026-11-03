@@ -39,6 +39,7 @@ final class ImageSession: ObservableObject {
     @Published var markupColor: MarkupColor = .red
     @Published var markupWeight: MarkupWeight = .regular
     @Published var markupFontSize: MarkupFontSize = .regular
+    @Published var markupFilled = false
     @Published private(set) var selectedMarkupID: UUID?
     @Published private(set) var isEditingMarkupText = false
     @Published private(set) var markupItems: [MarkupItem] = []
@@ -522,6 +523,46 @@ final class ImageSession: ObservableObject {
         cropSelection = frac?.standardized
     }
 
+    func selectEntireImage() {
+        guard hasImage else { return }
+        stopSlideshow()
+        markupTool = .crop
+        cropSelection = CGRect(x: 0, y: 0, width: 1, height: 1)
+    }
+
+    func removeBackground() {
+        apply(.removeBackground)
+    }
+
+    func newFromClipboard() {
+        guard confirmDiscardIfNeeded() else { return }
+        guard let image = NSImage(pasteboard: .general),
+              let cg = ImageLoader.cgImage(from: image) else {
+            let lang = LanguageManager.shared
+            if currentImage != nil {
+                let alert = NSAlert()
+                alert.alertStyle = .informational
+                alert.messageText = lang.t(.newFromClipboard)
+                alert.informativeText = lang.t(.clipboardEmpty)
+                alert.runModal()
+            } else {
+                errorMessage = lang.t(.clipboardEmpty)
+            }
+            return
+        }
+        let name = LanguageManager.shared.t(.untitledImage)
+        let dest = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(name)-\(Int(Date().timeIntervalSince1970)).png")
+        do {
+            try ImageEditing.write(cg, to: dest, type: .png)
+        } catch {
+            errorMessage = LanguageManager.shared.t(.clipboardEmpty)
+            return
+        }
+        folderAccess.retain(dest)
+        openFile(dest)
+    }
+
     func beginColorAdjust() {
         colorUndoPushed = false
         colorAdjust = currentColorAdjust()
@@ -586,7 +627,78 @@ final class ImageSession: ObservableObject {
             let name = (space.name as String?) ?? "RGB"
             rows.append((lang.t(.inspectorColor), name))
         }
+        if let url = currentURL, let details = ImageEditing.sourceDetails(for: url) {
+            if let dpi = formattedDPI(details) {
+                rows.append((lang.t(.inspectorDPI), dpi))
+            }
+            if let profile = details.profile?.trimmingCharacters(in: .whitespacesAndNewlines), !profile.isEmpty {
+                rows.append((lang.t(.inspectorProfile), profile))
+            }
+            if let camera = formattedCamera(details) {
+                rows.append((lang.t(.inspectorCamera), camera))
+            }
+            if let lens = details.lens?.trimmingCharacters(in: .whitespacesAndNewlines), !lens.isEmpty {
+                rows.append((lang.t(.inspectorLens), lens))
+            }
+            if let exposure = formattedExposure(details) {
+                rows.append((lang.t(.inspectorExposure), exposure))
+            }
+            if let captured = details.captured {
+                let formatter = DateFormatter()
+                formatter.locale = lang.resolved == .chineseSimplified ? Locale(identifier: "zh_CN") : Locale(identifier: "en_US")
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .short
+                rows.append((lang.t(.inspectorCaptured), formatter.string(from: captured)))
+            }
+        }
         return rows
+    }
+
+    var sourceDPILabel: String? {
+        guard let url = currentURL, let details = ImageEditing.sourceDetails(for: url) else { return nil }
+        return formattedDPI(details)
+    }
+
+    private func formattedDPI(_ details: ImageEditing.SourceDetails) -> String? {
+        guard let x = details.dpiX, x > 0 else { return nil }
+        let y = details.dpiY ?? x
+        if abs(x - y) < 0.5 {
+            return String(format: "%.0f", x)
+        }
+        return String(format: "%.0f × %.0f", x, y)
+    }
+
+    private func formattedCamera(_ details: ImageEditing.SourceDetails) -> String? {
+        let make = details.make?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let model = details.model?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !model.isEmpty {
+            if !make.isEmpty, !model.lowercased().hasPrefix(make.lowercased()) {
+                return "\(make) \(model)"
+            }
+            return model
+        }
+        return make.isEmpty ? nil : make
+    }
+
+    private func formattedExposure(_ details: ImageEditing.SourceDetails) -> String? {
+        var parts: [String] = []
+        if let t = details.exposureTime, t > 0 {
+            if t < 1 {
+                parts.append("1/\(max(1, Int((1 / t).rounded())))")
+            } else {
+                parts.append(String(format: "%.1fs", t))
+            }
+        }
+        if let f = details.fNumber, f > 0 {
+            parts.append(String(format: "ƒ/%.1f", f))
+        }
+        if let iso = details.iso, iso > 0 {
+            parts.append("ISO \(iso)")
+        }
+        if let focal = details.focalLength, focal > 0 {
+            parts.append(String(format: "%.0f mm", focal))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     func copyImage() {
@@ -625,6 +737,7 @@ final class ImageSession: ObservableObject {
         markupColor = item.color
         markupWeight = item.weight
         markupFontSize = item.fontSize
+        markupFilled = item.filled
     }
 
     func setMarkupTextEditing(_ editing: Bool) {
@@ -660,6 +773,14 @@ final class ImageSession: ObservableObject {
         if restyleSelected(color: nil, weight: nil, fontSize: size) { return }
         if markupTool == .browse, hasImage {
             markupTool = .text
+        }
+    }
+
+    func setMarkupFilled(_ filled: Bool) {
+        markupFilled = filled
+        if restyleSelected(color: nil, weight: nil, fontSize: nil, filled: filled) { return }
+        if markupTool == .browse, hasImage {
+            markupTool = .rect
         }
     }
 
@@ -877,13 +998,14 @@ final class ImageSession: ObservableObject {
     }
 
     @discardableResult
-    private func restyleSelected(color: MarkupColor?, weight: MarkupWeight?, fontSize: MarkupFontSize?) -> Bool {
+    private func restyleSelected(color: MarkupColor?, weight: MarkupWeight?, fontSize: MarkupFontSize?, filled: Bool? = nil) -> Bool {
         guard let id = selectedMarkupID,
               let idx = markupItems.firstIndex(where: { $0.id == id }) else { return false }
         var item = markupItems[idx]
         if let color { item.color = color }
         if let weight, !item.isText { item.weight = weight }
         if let fontSize, item.isText { item.fontSize = fontSize }
+        if let filled, item.canFill { item.filled = filled }
         if item == markupItems[idx] { return true }
         stopSlideshow()
         pushUndo()
