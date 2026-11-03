@@ -91,6 +91,7 @@ struct ContentView: View {
                     onRemoveMarkup: { session.removeMarkup(id: $0) },
                     onSelectMarkup: { session.selectMarkup(id: $0) },
                     onMarkupTextEditing: { session.setMarkupTextEditing($0) },
+                    onSetMarkupTool: { session.setMarkupTool($0) },
                     cropSelection: session.cropSelection,
                     onCropSelection: { session.setCropSelection($0) },
                     onApplyCrop: { session.applyCrop() }

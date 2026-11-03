@@ -36,6 +36,7 @@ struct ZoomableImageView: NSViewRepresentable {
     var onRemoveMarkup: (UUID) -> Void = { _ in }
     var onSelectMarkup: (UUID?) -> Void = { _ in }
     var onMarkupTextEditing: (Bool) -> Void = { _ in }
+    var onSetMarkupTool: (MarkupTool) -> Void = { _ in }
     var cropSelection: CGRect? = nil
     var onCropSelection: (CGRect?) -> Void = { _ in }
     var onApplyCrop: () -> Void = {}
@@ -108,6 +109,7 @@ struct ZoomableImageView: NSViewRepresentable {
         host.overlay.onRemoveMarkup = onRemoveMarkup
         host.overlay.onSelectMarkup = onSelectMarkup
         host.overlay.onMarkupTextEditing = onMarkupTextEditing
+        host.overlay.onSetMarkupTool = onSetMarkupTool
         host.overlay.onCropSelection = onCropSelection
         host.overlay.onApplyCrop = onApplyCrop
         host.overlay.markupCanvas = host.scrollView.markupCanvas
@@ -268,6 +270,7 @@ final class PageHitOverlay: NSView {
     var onRemoveMarkup: ((UUID) -> Void)?
     var onSelectMarkup: ((UUID?) -> Void)?
     var onMarkupTextEditing: ((Bool) -> Void)?
+    var onSetMarkupTool: ((MarkupTool) -> Void)?
     var onCropSelection: ((CGRect?) -> Void)?
     var onApplyCrop: (() -> Void)?
     var imageRectInOverlay: (() -> NSRect)?
@@ -513,7 +516,14 @@ final class PageHitOverlay: NSView {
                 return true
             }
             commitTextEditor()
-            // Fall through so this click can start a new markup / selection.
+            let imageRect = imageRectInOverlay?() ?? .zero
+            if let hit = ImageMarkup.hitTest(markupItems, at: local, imageRect: imageRect) {
+                selectedID = hit.id
+            }
+            movingOriginal = nil
+            resizeOriginal = nil
+            syncCanvas()
+            return true
         }
         selectedBeforeClick = selectedID
         resizeOriginal = nil
@@ -949,7 +959,10 @@ final class PageHitOverlay: NSView {
         hiddenID = nil
         onMarkupTextEditing?(false)
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        defer { syncCanvas() }
+        defer {
+            restoreBrowseAfterText()
+            syncCanvas()
+        }
         if let replaceID {
             if trimmed.isEmpty {
                 markupItems.removeAll { $0.id == replaceID }
@@ -990,7 +1003,21 @@ final class PageHitOverlay: NSView {
         editingFontSize = nil
         hiddenID = nil
         onMarkupTextEditing?(false)
+        restoreBrowseAfterText()
         syncCanvas()
+    }
+
+    /// After typing, drop the I-beam and go back to the select / browse cursor.
+    private func restoreBrowseAfterText() {
+        guard markupTool == .text else { return }
+        markupTool = .browse
+        onSetMarkupTool?(.browse)
+        window?.invalidateCursorRects(for: self)
+        if let location = NSApp.currentEvent?.locationInWindow {
+            onCursorMove?(location)
+        } else {
+            NSCursor.arrow.set()
+        }
     }
 
     var isEditingText: Bool { textEditor != nil }
