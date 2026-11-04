@@ -1,5 +1,7 @@
 ## Desktop 1.3.0（Linux / Windows / 国产系统）
 
+完整用户说明见 [desktop/RELEASE_NOTES.md](desktop/RELEASE_NOTES.md)。
+
 - 在 `desktop/` 同步 macOS Flip 0.6.x 的界面与轻量编辑：预览式顶部工具条（窄窗 `>>` 溢出，点标注才出第二行）、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、微信式文字背景、横线线宽、裁剪八控点、旋转翻转、调色 / 改尺寸 / 检查器、移除背景、剪贴板新建、存储与打印
 - 同一套 Qt 6 源码面向 Ubuntu、Windows、统信 UOS、银河麒麟、Deepin
 - 帮助菜单、使用提示原文、关于与「访问 Flip 产品页」保持原 Linux 文案
