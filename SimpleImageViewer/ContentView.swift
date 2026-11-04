@@ -5,19 +5,49 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject private var session: ImageSession
     @EnvironmentObject private var language: LanguageManager
+    @State private var toolbarTip: ToolbarHoverTip?
 
     var body: some View {
         VStack(spacing: 0) {
-            ViewerToolbarBar()
+            ViewerToolbarBar(hoverTip: $toolbarTip)
             Divider()
             viewerBody
         }
         .frame(minWidth: 480, minHeight: 320)
+        .overlay {
+            GeometryReader { geo in
+                let origin = geo.frame(in: .global).origin
+                if let toolbarTip {
+                    Text(toolbarTip.text)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+                        )
+                        .shadow(color: .black.opacity(0.2), radius: 7, y: 2)
+                        .fixedSize()
+                        .position(
+                            x: min(max(toolbarTip.globalX - origin.x, 36), max(36, geo.size.width - 36)),
+                            y: toolbarTip.globalY - origin.y
+                        )
+                }
+            }
+            .allowsHitTesting(false)
+        }
         .background(WindowConfigurator(title: session.windowTitle, isEdited: session.isDirty, session: session))
         .onOpenURL { url in
             session.open(url)
         }
         .onDrop(of: [.fileURL], isTargeted: $session.isDropTargeted, perform: handleDrop)
+        .sheet(isPresented: $session.showAdjustSize) {
+            AdjustSizeSheet()
+                .environmentObject(session)
+                .environmentObject(language)
+        }
         .alert(language.t(.moveToTrashQuestion), isPresented: $session.showDeleteConfirm) {
             Button(language.t(.moveToTrash), role: .destructive) {
                 session.deleteCurrent()
@@ -79,11 +109,17 @@ struct ContentView: View {
                     markupColor: session.markupColor,
                     markupWeight: session.markupWeight,
                     markupFontSize: session.markupFontSize,
+                    markupFilled: session.markupFilled,
+                    imagePixelSize: session.displayedPixelSize,
                     onAddMarkup: { session.addMarkup($0) },
                     onReplaceMarkup: { session.replaceMarkup($0) },
                     onRemoveMarkup: { session.removeMarkup(id: $0) },
                     onSelectMarkup: { session.selectMarkup(id: $0) },
-                    onMarkupTextEditing: { session.setMarkupTextEditing($0) }
+                    onMarkupTextEditing: { session.setMarkupTextEditing($0) },
+                    onSetMarkupTool: { session.setMarkupTool($0) },
+                    cropSelection: session.cropSelection,
+                    onCropSelection: { session.setCropSelection($0) },
+                    onApplyCrop: { session.applyCrop() }
                 )
             } else {
                 EmptyStateView()
@@ -204,6 +240,10 @@ private struct EmptyStateView: View {
 
                 Button(language.t(.openFolder)) {
                     session.openPanelForFolder()
+                }
+
+                Button(language.t(.newFromClipboard)) {
+                    session.newFromClipboard()
                 }
             }
             .padding(.top, 4)

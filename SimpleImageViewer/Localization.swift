@@ -129,10 +129,62 @@ enum L10n {
         case couldNotSaveNamed
         case toolBrowse
         case toolPen
+        case toolLine
         case toolArrow
         case toolRect
+        case toolRoundRect
+        case toolOval
+        case toolHighlight
         case toolText
+        case toolCrop
+        case toolbarMarkup
+        case toolbarMore
+        case markupFill
+        case markupStroke
+        case removeBackground
+        case newFromClipboard
+        case untitledImage
+        case clipboardEmpty
+        case selectAll
+        case adjustPercent
+        case crop
+        case adjustColor
+        case adjustSize
+        case adjustWidth
+        case adjustHeight
+        case adjustKeepAspect
+        case adjustExposure
+        case adjustContrast
+        case adjustBrightness
+        case adjustSaturation
+        case adjustHighlights
+        case adjustShadows
+        case adjustTemperature
+        case adjustTint
+        case adjustSepia
+        case adjustSharpness
+        case adjustAutoLevels
+        case adjustReset
+        case inspector
+        case inspectorFile
+        case inspectorPixels
+        case inspectorBytes
+        case inspectorFormat
+        case inspectorColor
+        case inspectorDPI
+        case inspectorProfile
+        case inspectorCamera
+        case inspectorLens
+        case inspectorExposure
+        case inspectorCaptured
         case markupColor
+        case colorRed
+        case colorOrange
+        case colorYellow
+        case colorGreen
+        case colorBlue
+        case colorWhite
+        case colorBlack
         case markupWeight
         case weightThin
         case weightRegular
@@ -144,6 +196,7 @@ enum L10n {
         case fontLarge
         case fontExtra
         case textPlaceholder
+        case textBackground
         case noAppsToOpenWith
         case aboutApp
         case aboutCredits
@@ -213,7 +266,7 @@ enum L10n {
         .allow: "Allow",
         .openImageToStart: "Open an image to start",
         .openImageHint: "File → Open Image…, drop a file on this window, or use Finder’s Open With.",
-        .shortcutsHint: "← → / swipe / click sides    ·    ⌘O  open    ·    ⌘L/R  rotate    ·    ⌘P  print",
+        .shortcutsHint: "← → / swipe / click sides    ·    ⌘O  open    ·    ⌘K  crop    ·    ⌘N  clipboard    ·    ⌘L/R  rotate    ·    ⌘P  print",
         .chooseImageMessage: "Choose an image to view",
         .chooseFolderMessage: "Choose a folder of images",
         .open: "Open",
@@ -241,14 +294,66 @@ enum L10n {
         .printEllipsis: "Print…",
         .editedSuffix: "(Edited)",
         .unsavedTitle: "Save changes to this image?",
-        .unsavedMessageNamed: "“%@” has unsaved rotate, flip, or markup changes.",
-        .unsavedMessage: "This image has unsaved rotate, flip, or markup changes.",
+        .unsavedMessageNamed: "“%@” has unsaved edits.",
+        .unsavedMessage: "This image has unsaved edits.",
         .toolBrowse: "Browse",
         .toolPen: "Draw",
+        .toolLine: "Line",
         .toolArrow: "Arrow",
         .toolRect: "Rectangle",
+        .toolRoundRect: "Rounded Rectangle",
+        .toolOval: "Ellipse",
+        .toolHighlight: "Highlight",
         .toolText: "Text",
+        .toolCrop: "Crop selection",
+        .toolbarMarkup: "Markup",
+        .toolbarMore: "More",
+        .markupFill: "Fill",
+        .markupStroke: "Stroke",
+        .removeBackground: "Remove Background",
+        .newFromClipboard: "New from Clipboard",
+        .untitledImage: "Untitled",
+        .clipboardEmpty: "Clipboard has no image.",
+        .selectAll: "Select All",
+        .adjustPercent: "Percent",
+        .crop: "Crop",
+        .adjustColor: "Adjust Color",
+        .adjustSize: "Adjust Size",
+        .adjustWidth: "Width",
+        .adjustHeight: "Height",
+        .adjustKeepAspect: "Scale proportionally",
+        .adjustExposure: "Exposure",
+        .adjustContrast: "Contrast",
+        .adjustBrightness: "Brightness",
+        .adjustSaturation: "Saturation",
+        .adjustHighlights: "Highlights",
+        .adjustShadows: "Shadows",
+        .adjustTemperature: "Temperature",
+        .adjustTint: "Tint",
+        .adjustSepia: "Sepia",
+        .adjustSharpness: "Sharpness",
+        .adjustAutoLevels: "Auto Levels",
+        .adjustReset: "Reset All",
+        .inspector: "Show Inspector",
+        .inspectorFile: "File",
+        .inspectorPixels: "Pixels",
+        .inspectorBytes: "Size",
+        .inspectorFormat: "Format",
+        .inspectorColor: "Color",
+        .inspectorDPI: "DPI",
+        .inspectorProfile: "Profile",
+        .inspectorCamera: "Camera",
+        .inspectorLens: "Lens",
+        .inspectorExposure: "Exposure",
+        .inspectorCaptured: "Captured",
         .markupColor: "Markup color",
+        .colorRed: "Red",
+        .colorOrange: "Orange",
+        .colorYellow: "Yellow",
+        .colorGreen: "Green",
+        .colorBlue: "Blue",
+        .colorWhite: "White",
+        .colorBlack: "Black",
         .markupWeight: "Line width",
         .weightThin: "Thin",
         .weightRegular: "Medium",
@@ -260,6 +365,7 @@ enum L10n {
         .fontLarge: "Large text",
         .fontExtra: "Extra large text",
         .textPlaceholder: "Type here · double-click to edit",
+        .textBackground: "Text background",
         .dontSave: "Don’t Save",
         .couldNotSaveNamed: "Could not save “%@”.",
         .noAppsToOpenWith: "No Applications",
@@ -336,7 +442,7 @@ enum L10n {
         .allow: "允许",
         .openImageToStart: "打开一张图片开始浏览",
         .openImageHint: "菜单「文件 → 打开图片…」、把文件拖进窗口，或用访达「打开方式」。",
-        .shortcutsHint: "← → / 滑动 / 点左右两侧    ·    ⌘O  打开    ·    ⌘L/R  旋转    ·    ⌘P  打印",
+        .shortcutsHint: "← → / 滑动 / 点左右两侧    ·    ⌘O  打开    ·    ⌘K  裁剪    ·    ⌘N  剪贴板    ·    ⌘L/R  旋转    ·    ⌘P  打印",
         .chooseImageMessage: "选择要查看的图片",
         .chooseFolderMessage: "选择包含图片的文件夹",
         .open: "打开",
@@ -364,14 +470,66 @@ enum L10n {
         .printEllipsis: "打印…",
         .editedSuffix: "（已编辑）",
         .unsavedTitle: "存储对此图片的更改？",
-        .unsavedMessageNamed: "“%@” 有未存储的旋转、翻转或标注。",
-        .unsavedMessage: "这张图片有未存储的旋转、翻转或标注。",
+        .unsavedMessageNamed: "“%@” 有未存储的更改。",
+        .unsavedMessage: "这张图片有未存储的更改。",
         .toolBrowse: "浏览",
         .toolPen: "画笔",
+        .toolLine: "直线",
         .toolArrow: "箭头",
         .toolRect: "矩形",
+        .toolRoundRect: "圆角矩形",
+        .toolOval: "椭圆",
+        .toolHighlight: "高亮",
         .toolText: "文字",
+        .toolCrop: "框选裁剪",
+        .toolbarMarkup: "标注",
+        .toolbarMore: "更多",
+        .markupFill: "填充",
+        .markupStroke: "描边",
+        .removeBackground: "移除背景",
+        .newFromClipboard: "从剪贴板新建",
+        .untitledImage: "未命名",
+        .clipboardEmpty: "剪贴板里没有图片。",
+        .selectAll: "全选",
+        .adjustPercent: "百分比",
+        .crop: "裁剪",
+        .adjustColor: "调整颜色",
+        .adjustSize: "调整大小",
+        .adjustWidth: "宽度",
+        .adjustHeight: "高度",
+        .adjustKeepAspect: "按比例缩放",
+        .adjustExposure: "曝光",
+        .adjustContrast: "对比度",
+        .adjustBrightness: "亮度",
+        .adjustSaturation: "饱和度",
+        .adjustHighlights: "高光",
+        .adjustShadows: "阴影",
+        .adjustTemperature: "色温",
+        .adjustTint: "色调",
+        .adjustSepia: "褐色",
+        .adjustSharpness: "锐度",
+        .adjustAutoLevels: "自动色阶",
+        .adjustReset: "全部还原",
+        .inspector: "显示检查器",
+        .inspectorFile: "文件",
+        .inspectorPixels: "像素",
+        .inspectorBytes: "大小",
+        .inspectorFormat: "格式",
+        .inspectorColor: "颜色",
+        .inspectorDPI: "分辨率",
+        .inspectorProfile: "描述文件",
+        .inspectorCamera: "相机",
+        .inspectorLens: "镜头",
+        .inspectorExposure: "曝光",
+        .inspectorCaptured: "拍摄时间",
         .markupColor: "标注颜色",
+        .colorRed: "红色",
+        .colorOrange: "橙色",
+        .colorYellow: "黄色",
+        .colorGreen: "绿色",
+        .colorBlue: "蓝色",
+        .colorWhite: "白色",
+        .colorBlack: "黑色",
         .markupWeight: "线条粗细",
         .weightThin: "细",
         .weightRegular: "中",
@@ -383,6 +541,7 @@ enum L10n {
         .fontLarge: "大字",
         .fontExtra: "特大字",
         .textPlaceholder: "输入文字 · 再点一次或双击可改",
+        .textBackground: "文字背景",
         .dontSave: "不存储",
         .couldNotSaveNamed: "无法存储“%@”。",
         .noAppsToOpenWith: "没有可用的应用程序",
