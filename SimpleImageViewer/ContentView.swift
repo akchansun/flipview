@@ -16,6 +16,7 @@ struct ContentView: View {
         .frame(minWidth: 480, minHeight: 320)
         .overlay {
             GeometryReader { geo in
+                let origin = geo.frame(in: .global).origin
                 if let toolbarTip {
                     Text(toolbarTip.text)
                         .font(.system(size: 11, weight: .medium))
@@ -30,8 +31,8 @@ struct ContentView: View {
                         .shadow(color: .black.opacity(0.2), radius: 7, y: 2)
                         .fixedSize()
                         .position(
-                            x: min(max(toolbarTip.x, 36), max(36, geo.size.width - 36)),
-                            y: toolbarTip.y
+                            x: min(max(toolbarTip.globalX - origin.x, 36), max(36, geo.size.width - 36)),
+                            y: toolbarTip.globalY - origin.y
                         )
                 }
             }

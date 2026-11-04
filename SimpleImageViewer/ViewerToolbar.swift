@@ -2,8 +2,8 @@ import SwiftUI
 
 struct ToolbarHoverTip: Equatable {
     var text: String
-    var x: CGFloat
-    var y: CGFloat
+    var globalX: CGFloat
+    var globalY: CGFloat
 }
 
 /// Always-on top bar: browse, zoom, rotate/flip, markup, save, print.
@@ -12,7 +12,7 @@ struct ViewerToolbarBar: View {
     @EnvironmentObject private var language: LanguageManager
     @Binding var hoverTip: ToolbarHoverTip?
     @State private var hoverTask: Task<Void, Never>?
-    @State private var barWidth: CGFloat = 1600
+    @State private var barWidth: CGFloat = 0
     @State private var showMarkupPad = false
     @State private var showMorePad = false
 
@@ -23,8 +23,8 @@ struct ViewerToolbarBar: View {
     }
 
     private var density: Density {
-        if barWidth >= 1360 { return .full }
-        if barWidth >= 900 { return .twoRow }
+        if barWidth >= 1340 { return .full }
+        if barWidth >= 760 { return .twoRow }
         return .compact
     }
 
@@ -36,15 +36,16 @@ struct ViewerToolbarBar: View {
                 markupRow
             }
         }
+        .frame(maxWidth: .infinity)
         .background(.bar)
-        .coordinateSpace(name: "toolbar")
         .background {
             GeometryReader { geo in
-                Color.clear
-                    .onAppear { barWidth = geo.size.width }
-                    .onChange(of: geo.size.width) { _, width in
-                        barWidth = width
-                    }
+                Color.clear.preference(key: ToolbarWidthKey.self, value: geo.size.width)
+            }
+        }
+        .onPreferenceChange(ToolbarWidthKey.self) { width in
+            if abs(width - barWidth) > 0.5 {
+                barWidth = width
             }
         }
         .popover(isPresented: $session.showAdjustColor, arrowEdge: .bottom) {
@@ -123,6 +124,7 @@ struct ViewerToolbarBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 38)
     }
 
@@ -134,6 +136,7 @@ struct ViewerToolbarBar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 38)
     }
 
@@ -730,6 +733,13 @@ struct AdjustSizeSheet: View {
     }
 }
 
+private struct ToolbarWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 private extension View {
     func toolbarHoverTip(_ text: String, schedule: @escaping (ToolbarHoverTip?) -> Void) -> some View {
         modifier(ToolbarHoverTipModifier(text: text, schedule: schedule))
@@ -739,24 +749,26 @@ private extension View {
 private struct ToolbarHoverTipModifier: ViewModifier {
     let text: String
     let schedule: (ToolbarHoverTip?) -> Void
-    @State private var anchor = CGPoint(x: 40, y: 50)
+    @State private var globalFrame = CGRect.zero
 
     func body(content: Content) -> some View {
         content
             .accessibilityLabel(text)
-            .background(
+            .overlay {
                 GeometryReader { geo in
-                    let frame = geo.frame(in: .named("toolbar"))
+                    let frame = geo.frame(in: .global)
                     Color.clear
-                        .onAppear { anchor = CGPoint(x: frame.midX, y: frame.maxY + 14) }
+                        .onAppear { globalFrame = frame }
                         .onChange(of: frame) { _, new in
-                            anchor = CGPoint(x: new.midX, y: new.maxY + 14)
+                            globalFrame = new
                         }
                 }
-            )
+                .allowsHitTesting(false)
+            }
             .onHover { inside in
                 if inside {
-                    schedule(ToolbarHoverTip(text: text, x: anchor.x, y: anchor.y))
+                    let frame = globalFrame
+                    schedule(ToolbarHoverTip(text: text, globalX: frame.midX, globalY: frame.maxY + 12))
                 } else {
                     schedule(nil)
                 }
