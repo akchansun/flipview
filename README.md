@@ -2,7 +2,10 @@
 
 [中文](#中文) · [English](#english)
 
-Lightweight **macOS** image viewer: open one picture, flip through the same folder. Free and open source (MIT).
+Lightweight image viewer: open one picture, flip through the same folder. Free and open source (MIT).
+
+- **macOS:** Swift/AppKit app in this repo (`SimpleImageViewer`)
+- **Linux / Windows / 国产系统（UOS、麒麟、Deepin）:** Qt 6 桌面端，源码在 [`desktop/`](desktop/)（与 macOS 0.6.x 对齐的工具条、标注、裁剪与轻量编辑）
 
 **GitHub:** <https://github.com/akchansun/flipview>  
 **Gitee:** <https://gitee.com/akcg/flipview>  
