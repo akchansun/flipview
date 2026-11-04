@@ -784,6 +784,22 @@ final class ImageSession: ObservableObject {
         }
     }
 
+    func setMarkupTextBackground(_ on: Bool) {
+        markupFilled = on
+        if isEditingMarkupText {
+            return
+        }
+        if let id = selectedMarkupID,
+           let item = markupItems.first(where: { $0.id == id }),
+           item.isText {
+            _ = restyleSelected(color: nil, weight: nil, fontSize: nil, filled: on)
+            return
+        }
+        if markupTool == .browse, hasImage {
+            markupTool = .text
+        }
+    }
+
     func addMarkup(_ item: MarkupItem) {
         stopSlideshow()
         pushUndo()
@@ -1005,7 +1021,7 @@ final class ImageSession: ObservableObject {
         if let color { item.color = color }
         if let weight, !item.isText { item.weight = weight }
         if let fontSize, item.isText { item.fontSize = fontSize }
-        if let filled, item.canFill { item.filled = filled }
+        if let filled, item.canFill || item.isText { item.filled = filled }
         if item == markupItems[idx] { return true }
         stopSlideshow()
         pushUndo()

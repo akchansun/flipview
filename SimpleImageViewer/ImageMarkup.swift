@@ -61,6 +61,16 @@ enum MarkupColor: String, CaseIterable, Equatable {
         case .black: return .black
         }
     }
+
+    /// Ink on a WeChat-style color chip (dark on yellow/white, white otherwise).
+    var contrastingInk: NSColor {
+        switch self {
+        case .yellow, .white:
+            return NSColor(srgbRed: 0.12, green: 0.12, blue: 0.12, alpha: 1)
+        default:
+            return .white
+        }
+    }
 }
 
 enum MarkupFontSize: String, CaseIterable, Equatable {
@@ -314,7 +324,14 @@ enum ImageMarkup {
                 ctx.addPath(CGPath(roundedRect: box, cornerWidth: radius, cornerHeight: radius, transform: nil))
                 ctx.fillPath()
             case .text(let origin, let string):
-                drawText(string, at: denorm(origin, in: imageRect), color: item.color.nsColor, imageRect: imageRect, fontSize: item.fontSize)
+                drawText(
+                    string,
+                    at: denorm(origin, in: imageRect),
+                    color: item.color,
+                    imageRect: imageRect,
+                    fontSize: item.fontSize,
+                    background: item.filled
+                )
             }
             ctx.restoreGState()
         }
@@ -372,7 +389,7 @@ enum ImageMarkup {
         case .text(let origin, let string):
             strokeDashedRect(
                 ctx,
-                textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
+                textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect, background: item.filled)
             )
         case .rect(let start, let end), .highlight(let start, let end):
             strokeDashedRect(ctx, denormRect(start, end, in: imageRect).insetBy(dx: -outer, dy: -outer))
@@ -575,8 +592,19 @@ enum ImageMarkup {
         return max(12, minSide * 0.02 * fontSize.scale)
     }
 
-    static func textAttributes(color: NSColor, imageRect: CGRect, fontSize: MarkupFontSize = .regular) -> [NSAttributedString.Key: Any] {
+    static func textAttributes(
+        color: NSColor,
+        imageRect: CGRect,
+        fontSize: MarkupFontSize = .regular,
+        background: Bool = false
+    ) -> [NSAttributedString.Key: Any] {
         let size = textPointSize(fontSize: fontSize, in: imageRect)
+        if background {
+            return [
+                .font: NSFont.systemFont(ofSize: size, weight: .medium),
+                .foregroundColor: color
+            ]
+        }
         let shadow = NSShadow()
         shadow.shadowOffset = NSSize(width: 0, height: -0.6)
         shadow.shadowBlurRadius = 1.2
@@ -590,10 +618,18 @@ enum ImageMarkup {
         ]
     }
 
+    static func textPadding(forFontHeight height: CGFloat) -> (x: CGFloat, y: CGFloat) {
+        (max(6, height * 0.4), max(3, height * 0.22))
+    }
+
+    static func textChipRadius(forHeight height: CGFloat) -> CGFloat {
+        min(max(height, 1) / 2, 18)
+    }
+
     private static func hit(_ item: MarkupItem, at point: CGPoint, imageRect: CGRect, tolerance: CGFloat) -> Bool {
         switch item.kind {
         case .text(let origin, let string):
-            return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect)
+            return textFrame(string, origin: origin, color: item.color, fontSize: item.fontSize, imageRect: imageRect, background: item.filled)
                 .insetBy(dx: -4, dy: -4)
                 .contains(point)
         case .rect(let start, let end):
@@ -684,10 +720,23 @@ enum ImageMarkup {
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    private static func textFrame(_ string: String, origin: CGPoint, color: MarkupColor, fontSize: MarkupFontSize, imageRect: CGRect) -> CGRect {
+    static func textFrame(
+        _ string: String,
+        origin: CGPoint,
+        color: MarkupColor,
+        fontSize: MarkupFontSize,
+        imageRect: CGRect,
+        background: Bool = false
+    ) -> CGRect {
         let originView = denorm(origin, in: imageRect)
-        let size = (string as NSString).size(withAttributes: textAttributes(color: color.nsColor, imageRect: imageRect, fontSize: fontSize))
-        return CGRect(x: originView.x, y: originView.y, width: max(size.width, 1), height: max(size.height, 1))
+        let ink = background ? color.contrastingInk : color.nsColor
+        let size = (string as NSString).size(withAttributes: textAttributes(color: ink, imageRect: imageRect, fontSize: fontSize, background: background))
+        var frame = CGRect(x: originView.x, y: originView.y, width: max(size.width, 1), height: max(size.height, 1))
+        if background {
+            let pad = textPadding(forFontHeight: frame.height)
+            frame = frame.insetBy(dx: -pad.x, dy: -pad.y)
+        }
+        return frame
     }
 
     private static func strokeDashedRect(_ ctx: CGContext, _ rect: CGRect) {
@@ -1008,10 +1057,33 @@ enum ImageMarkup {
         ctx.fillPath()
     }
 
-    private static func drawText(_ string: String, at origin: CGPoint, color: NSColor, imageRect: CGRect, fontSize: MarkupFontSize) {
+    private static func drawText(
+        _ string: String,
+        at origin: CGPoint,
+        color: MarkupColor,
+        imageRect: CGRect,
+        fontSize: MarkupFontSize,
+        background: Bool
+    ) {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        trimmed.draw(at: origin, withAttributes: textAttributes(color: color, imageRect: imageRect, fontSize: fontSize))
+        let ink = background ? color.contrastingInk : color.nsColor
+        let attrs = textAttributes(color: ink, imageRect: imageRect, fontSize: fontSize, background: background)
+        if background, let ctx = NSGraphicsContext.current?.cgContext {
+            let size = (trimmed as NSString).size(withAttributes: attrs)
+            let pad = textPadding(forFontHeight: max(size.height, 1))
+            let box = CGRect(
+                x: origin.x - pad.x,
+                y: origin.y - pad.y,
+                width: size.width + pad.x * 2,
+                height: size.height + pad.y * 2
+            )
+            let radius = textChipRadius(forHeight: box.height)
+            ctx.setFillColor(color.nsColor.cgColor)
+            ctx.addPath(CGPath(roundedRect: box, cornerWidth: radius, cornerHeight: radius, transform: nil))
+            ctx.fillPath()
+        }
+        trimmed.draw(at: origin, withAttributes: attrs)
     }
 }
 

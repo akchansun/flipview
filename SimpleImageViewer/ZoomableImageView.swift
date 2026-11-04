@@ -241,6 +241,11 @@ final class ImageViewerHostView: NSView {
     }
 }
 
+/// Rounded color chip behind the live text field. Clicks pass through to the field / overlay.
+private final class TextEditorChipView: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 final class PageHitOverlay: NSView {
     var onNavigate: ((NavigateDirection) -> Void)?
     var onDelete: (() -> Void)?
@@ -305,24 +310,26 @@ final class PageHitOverlay: NSView {
     }
     var markupColor: MarkupColor = .red {
         didSet {
-            if let field = textEditor {
-                field.textColor = markupColor.nsColor
-                editingColor = markupColor
-            }
+            guard oldValue != markupColor, textEditor != nil else { return }
+            editingColor = markupColor
+            applyTextEditorChrome()
         }
     }
     var markupWeight: MarkupWeight = .regular
     var markupFontSize: MarkupFontSize = .regular {
         didSet {
+            guard oldValue != markupFontSize, textEditor != nil else { return }
             editingFontSize = markupFontSize
-            if let field = textEditor {
-                let imageRect = imageRectInOverlay?() ?? bounds
-                let rect = imageRect.width > 1 ? imageRect : bounds
-                field.font = .systemFont(ofSize: ImageMarkup.textPointSize(fontSize: markupFontSize, in: rect), weight: .regular)
-            }
+            applyTextEditorChrome()
         }
     }
-    var markupFilled = false
+    var markupFilled = false {
+        didSet {
+            guard oldValue != markupFilled, textEditor != nil else { return }
+            editingFilled = markupFilled
+            applyTextEditorChrome()
+        }
+    }
     var imagePixelSize: CGSize = .zero
 
     private var draft: MarkupItem?
@@ -340,11 +347,13 @@ final class PageHitOverlay: NSView {
     }
     private var hiddenID: UUID?
     private var textEditor: NSTextField?
+    private var textEditorChip: NSView?
     private var textEditorFrac: CGPoint?
     private var editingItemID: UUID?
     private var editingColor: MarkupColor?
     private var editingWeight: MarkupWeight?
     private var editingFontSize: MarkupFontSize?
+    private var editingFilled: Bool?
     var cropSelection: CGRect? {
         didSet { needsDisplay = true }
     }
@@ -401,7 +410,7 @@ final class PageHitOverlay: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = convert(point, from: superview)
-        if let editor = textEditor, !editor.isHidden, editor.frame.insetBy(dx: -8, dy: -8).contains(local) {
+        if let editor = textEditor, !editor.isHidden, textEditorKeepFrame.contains(local) {
             return editor
         }
         return bounds.contains(local) ? self : nil
@@ -451,6 +460,7 @@ final class PageHitOverlay: NSView {
         editingColor = nil
         editingWeight = nil
         editingFontSize = nil
+        editingFilled = nil
         textEditorFrac = nil
         resizeOriginal = nil
         resizeHandle = nil
@@ -526,8 +536,8 @@ final class PageHitOverlay: NSView {
     func handleMarkupMouseDown(_ event: NSEvent) -> Bool {
         if textEditor != nil {
             let local = convert(event.locationInWindow, from: nil)
-            if let editor = textEditor, editor.frame.insetBy(dx: -8, dy: -8).contains(local) {
-                window?.makeFirstResponder(editor)
+            if textEditorKeepFrame.contains(local) {
+                window?.makeFirstResponder(textEditor)
                 return true
             }
             commitTextEditor()
@@ -876,22 +886,10 @@ final class PageHitOverlay: NSView {
         let color = existing?.color ?? markupColor
         let weight = existing?.weight ?? markupWeight
         let fontSize = existing?.fontSize ?? markupFontSize
+        let filled = existing?.filled ?? markupFilled
         let pointSize = ImageMarkup.textPointSize(fontSize: fontSize, in: imageRect.width > 1 ? imageRect : bounds)
-        let attrs = ImageMarkup.textAttributes(color: color.nsColor, imageRect: imageRect.width > 1 ? imageRect : bounds, fontSize: fontSize)
-        let textSize = (existingText as NSString).size(withAttributes: attrs)
-        let width = min(
-            max(bounds.width - 16, 80),
-            max(existingText.isEmpty ? pointSize * 10 : textSize.width + 18, pointSize * 6)
-        )
-        let fieldHeight = max(pointSize + 6, 18)
-        var fieldX = origin.x
-        var fieldY = origin.y - 1
-        fieldX = min(max(4, fieldX), max(4, bounds.width - width - 4))
-        fieldY = min(max(2, fieldY), max(2, bounds.height - fieldHeight - 2))
-        let field = NSTextField(frame: NSRect(x: fieldX, y: fieldY, width: width, height: fieldHeight))
+        let field = NSTextField(frame: NSRect(x: origin.x, y: origin.y, width: pointSize * 6, height: max(pointSize + 6, 18)))
         field.placeholderString = LanguageManager.shared.t(.textPlaceholder)
-        field.font = .systemFont(ofSize: pointSize, weight: .regular)
-        field.textColor = color.nsColor
         field.backgroundColor = .clear
         field.drawsBackground = false
         field.isBezeled = false
@@ -916,13 +914,106 @@ final class PageHitOverlay: NSView {
         editingColor = color
         editingWeight = weight
         editingFontSize = fontSize
+        editingFilled = filled
         if let existing {
             hiddenID = existing.id
             selectedID = existing.id
         }
+        applyTextEditorChrome()
         syncCanvas()
         onMarkupTextEditing?(true)
         focusTextEditor()
+    }
+
+    private func applyTextEditorChrome() {
+        guard let field = textEditor else { return }
+        let background = editingFilled ?? markupFilled
+        let color = editingColor ?? markupColor
+        let fontSize = editingFontSize ?? markupFontSize
+        let imageRect = imageRectInOverlay?() ?? bounds
+        let rect = imageRect.width > 1 ? imageRect : bounds
+        let pointSize = ImageMarkup.textPointSize(fontSize: fontSize, in: rect)
+        let ink = background ? color.contrastingInk : color.nsColor
+        field.font = .systemFont(ofSize: pointSize, weight: background ? .medium : .regular)
+        field.textColor = ink
+        field.drawsBackground = false
+        field.backgroundColor = .clear
+        if let cell = field.cell as? NSTextFieldCell {
+            cell.placeholderAttributedString = NSAttributedString(
+                string: LanguageManager.shared.t(.textPlaceholder),
+                attributes: [
+                    .font: field.font ?? NSFont.systemFont(ofSize: pointSize),
+                    .foregroundColor: ink.withAlphaComponent(0.42)
+                ]
+            )
+        }
+        if background {
+            if textEditorChip == nil {
+                let view = TextEditorChipView(frame: .zero)
+                view.wantsLayer = true
+                view.layer?.masksToBounds = true
+                addSubview(view, positioned: .below, relativeTo: field)
+                textEditorChip = view
+            }
+            textEditorChip?.isHidden = false
+            textEditorChip?.layer?.backgroundColor = color.nsColor.cgColor
+        } else {
+            textEditorChip?.isHidden = true
+        }
+        layoutTextEditor()
+    }
+
+    private func layoutTextEditor() {
+        guard let field = textEditor, let frac = textEditorFrac else { return }
+        let imageRect = imageRectInOverlay?() ?? .zero
+        let rect = imageRect.width > 1 ? imageRect : bounds
+        let background = editingFilled ?? markupFilled
+        let color = editingColor ?? markupColor
+        let fontSize = editingFontSize ?? markupFontSize
+        let ink = background ? color.contrastingInk : color.nsColor
+        let attrs = ImageMarkup.textAttributes(color: ink, imageRect: rect, fontSize: fontSize, background: background)
+        let text = field.stringValue
+        let pointSize = ImageMarkup.textPointSize(fontSize: fontSize, in: rect)
+        let textSize = (text as NSString).size(withAttributes: attrs)
+        let pad = background ? ImageMarkup.textPadding(forFontHeight: max(textSize.height, pointSize)) : (x: CGFloat(0), y: CGFloat(0))
+        let contentWidth = max(text.isEmpty ? pointSize * 10 : textSize.width + 18, pointSize * 6)
+        let width = min(max(bounds.width - 16, 80), contentWidth)
+        let fieldHeight = max(max(textSize.height, pointSize + 6), 18)
+        var origin = NSPoint(
+            x: imageRect.minX + frac.x * imageRect.width,
+            y: imageRect.minY + frac.y * imageRect.height
+        )
+        if imageRect.width <= 1 {
+            origin = NSPoint(x: field.frame.minX + pad.x, y: field.frame.minY + pad.y)
+        }
+        var fieldX = origin.x
+        var fieldY = origin.y - (background ? 0 : 1)
+        fieldX = min(max(4 + pad.x, fieldX), max(4 + pad.x, bounds.width - width - 4 - pad.x))
+        fieldY = min(max(2 + pad.y, fieldY), max(2 + pad.y, bounds.height - fieldHeight - 2 - pad.y))
+        field.frame = NSRect(x: fieldX, y: fieldY, width: width, height: fieldHeight)
+        if let chip = textEditorChip, background {
+            chip.frame = NSRect(
+                x: fieldX - pad.x,
+                y: fieldY - pad.y,
+                width: width + pad.x * 2,
+                height: fieldHeight + pad.y * 2
+            )
+            chip.layer?.cornerRadius = ImageMarkup.textChipRadius(forHeight: chip.frame.height)
+        }
+    }
+
+    private func teardownTextEditorChrome() {
+        textEditorChip?.removeFromSuperview()
+        textEditorChip = nil
+    }
+
+    private var textEditorKeepFrame: NSRect {
+        guard let editor = textEditor else { return .zero }
+        var frame = editor.frame.insetBy(dx: -8, dy: -8)
+        if let chip = textEditorChip, !chip.isHidden {
+            frame = frame.union(chip.frame.insetBy(dx: -4, dy: -4))
+        }
+        return frame
     }
 
     func focusTextEditor() {
@@ -939,15 +1030,10 @@ final class PageHitOverlay: NSView {
     }
 
     func repositionTextEditor() {
-        guard let field = textEditor, let frac = textEditorFrac else { return }
+        guard textEditor != nil, textEditorFrac != nil else { return }
         let imageRect = imageRectInOverlay?() ?? .zero
         guard imageRect.width > 1, imageRect.height > 1 else { return }
-        var frame = field.frame
-        frame.origin = NSPoint(
-            x: imageRect.minX + frac.x * imageRect.width,
-            y: imageRect.minY + frac.y * imageRect.height - 2
-        )
-        field.frame = frame
+        layoutTextEditor()
     }
 
     @objc private func textEditorEnded(_ sender: NSTextField) {
@@ -962,15 +1048,18 @@ final class PageHitOverlay: NSView {
         let color = editingColor ?? markupColor
         let weight = editingWeight ?? markupWeight
         let fontSize = editingFontSize ?? markupFontSize
+        let filled = editingFilled ?? markupFilled
         let frac = textEditorFrac ?? .zero
         field.delegate = nil
         field.removeFromSuperview()
+        teardownTextEditorChrome()
         textEditor = nil
         textEditorFrac = nil
         editingItemID = nil
         editingColor = nil
         editingWeight = nil
         editingFontSize = nil
+        editingFilled = nil
         hiddenID = nil
         onMarkupTextEditing?(false)
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -989,6 +1078,7 @@ final class PageHitOverlay: NSView {
                     color: color,
                     weight: weight,
                     fontSize: fontSize,
+                    filled: filled,
                     kind: .text(origin: frac, string: text)
                 )
                 if let idx = markupItems.firstIndex(where: { $0.id == replaceID }) {
@@ -1000,7 +1090,7 @@ final class PageHitOverlay: NSView {
             return true
         }
         guard !trimmed.isEmpty else { return true }
-        let item = MarkupItem(color: color, weight: weight, fontSize: fontSize, kind: .text(origin: frac, string: text))
+        let item = MarkupItem(color: color, weight: weight, fontSize: fontSize, filled: filled, kind: .text(origin: frac, string: text))
         markupItems.append(item)
         onAddMarkup?(item)
         selectedID = item.id
@@ -1010,12 +1100,14 @@ final class PageHitOverlay: NSView {
     func cancelTextEditor() {
         textEditor?.delegate = nil
         textEditor?.removeFromSuperview()
+        teardownTextEditorChrome()
         textEditor = nil
         textEditorFrac = nil
         editingItemID = nil
         editingColor = nil
         editingWeight = nil
         editingFontSize = nil
+        editingFilled = nil
         hiddenID = nil
         onMarkupTextEditing?(false)
         restoreBrowseAfterText()
@@ -1195,15 +1287,7 @@ final class PageHitOverlay: NSView {
 extension PageHitOverlay: NSTextFieldDelegate {
     func controlTextDidChange(_ obj: Notification) {
         guard let field = textEditor, field === obj.object as? NSTextField else { return }
-        let imageRect = imageRectInOverlay?() ?? bounds
-        let rect = imageRect.width > 1 ? imageRect : bounds
-        let fontSize = editingFontSize ?? markupFontSize
-        let attrs = ImageMarkup.textAttributes(color: field.textColor ?? .white, imageRect: rect, fontSize: fontSize)
-        let size = (field.stringValue as NSString).size(withAttributes: attrs)
-        let pointSize = ImageMarkup.textPointSize(fontSize: fontSize, in: rect)
-        var frame = field.frame
-        frame.size.width = min(max(4, bounds.width - frame.origin.x - 8), max(size.width + 18, pointSize * 6))
-        field.frame = frame
+        layoutTextEditor()
     }
 
     func controlTextDidEndEditing(_ obj: Notification) {

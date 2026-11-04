@@ -132,6 +132,7 @@ struct ViewerToolbarBar: View {
                 }
 
                 fillToggle
+                textBackgroundButton
                 colorDots
                 weightButtons
                 fontSizeButtons
@@ -203,22 +204,52 @@ struct ViewerToolbarBar: View {
     private var fillToggle: some View {
         let selectedCanFill = session.markupItems.first(where: { $0.id == session.selectedMarkupID })?.canFill == true
         let enabled = session.hasImage && (session.markupTool.canFill || selectedCanFill)
+        let filled = enabled && session.markupFilled
         return Button {
             session.setMarkupFilled(!session.markupFilled)
         } label: {
-            Image(systemName: session.markupFilled ? "square.fill" : "square")
+            Image(systemName: filled ? "square.fill" : "square")
                 .font(.system(size: 13, weight: .medium))
                 .frame(width: 28, height: 24)
                 .background(
-                    session.markupFilled ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06),
+                    filled ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06),
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                 )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(language.t(session.markupFilled ? .markupFill : .markupStroke))
+        .help(language.t(filled ? .markupFill : .markupStroke))
         .disabled(!enabled)
         .padding(.leading, 4)
+    }
+
+    private var textBackgroundButton: some View {
+        let selectedIsText = session.markupItems.first(where: { $0.id == session.selectedMarkupID })?.isText == true
+        let active = session.markupTool == .text || session.isEditingMarkupText || selectedIsText
+        return Button {
+            session.setMarkupTextBackground(!session.markupFilled)
+        } label: {
+            Text("A")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(session.markupFilled ? Color.white : Color.primary)
+                .frame(width: 22, height: 16)
+                .background(
+                    session.markupFilled ? Color.accentColor : Color.primary.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 4, style: .continuous)
+                )
+                .frame(width: 28, height: 24)
+                .background(
+                    session.markupFilled && active
+                        ? Color.accentColor.opacity(0.18)
+                        : Color.primary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(language.t(.textBackground))
+        .disabled(!session.hasImage)
+        .padding(.leading, 2)
     }
 
     private var colorDots: some View {

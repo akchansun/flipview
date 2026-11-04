@@ -187,6 +187,7 @@ enum L10n {
         case fontLarge
         case fontExtra
         case textPlaceholder
+        case textBackground
         case noAppsToOpenWith
         case aboutApp
         case aboutCredits
@@ -346,6 +347,7 @@ enum L10n {
         .fontLarge: "Large text",
         .fontExtra: "Extra large text",
         .textPlaceholder: "Type here · double-click to edit",
+        .textBackground: "Text background",
         .dontSave: "Don’t Save",
         .couldNotSaveNamed: "Could not save “%@”.",
         .noAppsToOpenWith: "No Applications",
@@ -512,6 +514,7 @@ enum L10n {
         .fontLarge: "大字",
         .fontExtra: "特大字",
         .textPlaceholder: "输入文字 · 再点一次或双击可改",
+        .textBackground: "文字背景",
         .dontSave: "不存储",
         .couldNotSaveNamed: "无法存储“%@”。",
         .noAppsToOpenWith: "没有可用的应用程序",

@@ -22,7 +22,8 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           ## 新功能
-          - 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器 / 移除背景、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、颜色、线宽、字号、存储、打印
+          - 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器 / 移除背景、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、文字背景、颜色、线宽、字号、存储、打印
+          - 文字可加微信式彩色圆角背景，字自动用对比色；输入时就能看到底
           - 裁剪可拖八个点、移动选区、Shift 正方形、显示像素尺寸；⌘A 全选，回车或双击裁切
           - 已有文字可再点编辑、改字号；标注可选中后拖动、改色改粗细改填充，形状可拉伸
           - 从剪贴板新建（⌘N）；检查器含 DPI / 相机 / 曝光
@@ -44,6 +45,7 @@ jobs:
           - Preview-style crop: eight handles, move the box, Shift for square, live pixel size, ⌘A, Return / double-click to crop
           - Line, rounded rectangle, highlight, fill vs stroke; Shift constrains square / circle / 45°
           - New from Clipboard (⌘N); Remove Background; inspector shows DPI, camera, and exposure
+          - WeChat-style text background: colored rounded chip, contrasting ink, live while typing
           - Markup and crop feel closer to Preview: round handles, filled arrows, smoothed ink, hairline crop box
           - After typing, Return or clicking empty space returns to the select / browse cursor
           - Click text once to edit; the field matches the drawn size instead of a huge box
