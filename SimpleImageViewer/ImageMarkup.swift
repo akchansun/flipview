@@ -172,12 +172,13 @@ enum MarkupWeight: String, CaseIterable, Equatable {
         }
     }
 
-    var sampleHeight: CGFloat {
+    /// Stroke width of the Preview-style horizontal sample in the toolbar.
+    var sampleThickness: CGFloat {
         switch self {
         case .thin: return 1
-        case .regular: return 2.5
-        case .thick: return 4
-        case .heavy: return 6.5
+        case .regular: return 2
+        case .thick: return 3.5
+        case .heavy: return 6
         }
     }
 

@@ -13,6 +13,7 @@ struct ViewerToolbarBar: View {
     @Binding var hoverTip: ToolbarHoverTip?
     @State private var hoverTask: Task<Void, Never>?
     @State private var barWidth: CGFloat = 0
+    @State private var showWeightPad = false
 
     /// Preview keeps rotate / crop / markup on the main bar; extras go behind `>>`.
     private var showsRotateRight: Bool { barWidth >= 620 }
@@ -53,6 +54,9 @@ struct ViewerToolbarBar: View {
             InspectorPopover()
                 .environmentObject(session)
                 .environmentObject(language)
+        }
+        .onChange(of: isMarkupMode) { _, on in
+            if !on { showWeightPad = false }
         }
         .onDisappear {
             hoverTask?.cancel()
@@ -120,7 +124,7 @@ struct ViewerToolbarBar: View {
                 styleCluster
             } else {
                 colorWell
-                weightMenu
+                weightPicker
                 fontMenu
                 fillToggle
                 textBackgroundButton
@@ -255,22 +259,55 @@ struct ViewerToolbarBar: View {
         .disabled(!session.hasImage)
     }
 
-    private var weightMenu: some View {
-        Menu {
-            ForEach(MarkupWeight.allCases, id: \.self) { weight in
-                Button(language.t(weight.helpKey)) {
-                    session.setMarkupWeight(weight)
+    private var weightPicker: some View {
+        Button {
+            guard session.hasImage else { return }
+            showWeightPad.toggle()
+        } label: {
+            WeightSampleLine(thickness: session.markupWeight.sampleThickness, length: 18)
+                .frame(width: 28, height: 24)
+                .background(
+                    showWeightPad ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(session.hasImage ? 1 : 0.35)
+        .toolbarHoverTip(language.t(.markupWeight), schedule: scheduleHoverTip)
+        .popover(isPresented: $showWeightPad, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(MarkupWeight.allCases, id: \.self) { weight in
+                    Button {
+                        session.setMarkupWeight(weight)
+                        showWeightPad = false
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.primary)
+                                .opacity(session.markupWeight == weight ? 1 : 0)
+                                .frame(width: 14)
+                            WeightSampleLine(thickness: weight.sampleThickness, length: 88)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(height: 28)
+                        .padding(.horizontal, 8)
+                        .background(
+                            session.markupWeight == weight ? Color.accentColor.opacity(0.16) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(language.t(weight.helpKey))
                 }
             }
-        } label: {
-            Image(systemName: "lineweight")
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: 28, height: 24)
+            .padding(6)
+            .frame(width: 148)
         }
-        .menuIndicator(.hidden)
-        .menuStyle(.borderlessButton)
-        .toolbarHoverTip(language.t(.markupWeight), schedule: scheduleHoverTip)
-        .disabled(!session.hasImage)
+        .padding(.leading, 4)
+        .accessibilityLabel(language.t(.markupWeight))
     }
 
     private var fontMenu: some View {
@@ -296,7 +333,7 @@ struct ViewerToolbarBar: View {
             fillToggle
             textBackgroundButton
             colorDots
-            weightButtons
+            weightPicker
             fontSizeButtons
         }
     }
@@ -488,32 +525,6 @@ struct ViewerToolbarBar: View {
             }
         }
         .padding(.leading, 6)
-    }
-
-    private var weightButtons: some View {
-        HStack(spacing: 2) {
-            ForEach(MarkupWeight.allCases, id: \.self) { weight in
-                Button {
-                    guard session.hasImage else { return }
-                    session.setMarkupWeight(weight)
-                } label: {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(session.markupWeight == weight ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06))
-                        Capsule()
-                            .fill(Color.primary)
-                            .frame(width: 14, height: weight.sampleHeight)
-                    }
-                    .frame(width: 28, height: 24)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .opacity(session.hasImage ? 1 : 0.35)
-                .toolbarHoverTip(language.t(weight.helpKey), schedule: scheduleHoverTip)
-            }
-        }
-        .padding(.leading, 4)
-        .accessibilityLabel(language.t(.markupWeight))
     }
 
     private var fontSizeButtons: some View {
@@ -766,6 +777,17 @@ struct AdjustSizeSheet: View {
 private extension View {
     func toolbarHoverTip(_ text: String, schedule: @escaping (ToolbarHoverTip?) -> Void) -> some View {
         modifier(ToolbarHoverTipModifier(text: text, schedule: schedule))
+    }
+}
+
+private struct WeightSampleLine: View {
+    var thickness: CGFloat
+    var length: CGFloat
+
+    var body: some View {
+        Capsule(style: .continuous)
+            .fill(Color.primary)
+            .frame(width: length, height: max(thickness, 0.8))
     }
 }
 
