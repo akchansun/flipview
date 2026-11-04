@@ -10,7 +10,7 @@
       "en": "0.6.16: Preview-style toolbar with markup, crop, color, and WeChat text background; hairline stroke. Flip comes in front of Finder on open."
     },
     "download": {
-      "site": "https://www.ak129.cn/flip/",
+      "site": "https://www.ak129.cn/flip/download.php",
       "gitee": "https://gitee.com/akcg/flipview",
       "github": "https://github.com/akchansun/flipview/releases/tag/v0.6.16",
       "githubAsset": "https://github.com/akchansun/flipview/releases/download/v0.6.16/Flip-0.6.16-macos-universal.zip"
