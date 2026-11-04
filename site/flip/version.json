@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "product": "Flip",
+  "site": "https://www.ak129.cn/flip/",
+  "macos": {
+    "version": "0.4.8",
+    "minOs": "macOS 12",
+    "notes": {
+      "zh": "访达双击打开后窗口到最前；去掉 0.4.7 抢前台导致的变慢与偶发关了又开。菜单仍可「设为默认看图软件」。",
+      "en": "Bring Flip in front after Finder open; remove 0.4.7 self-relaunch slowdowns and reopen glitches. Set as Default Image Viewer remains."
+    },
+    "download": {
+      "site": "https://www.ak129.cn/flip/download.php",
+      "gitee": "https://gitee.com/akcg/flipview/releases/tag/v0.4.8",
+      "github": "https://github.com/akchansun/flipview/releases/tag/v0.4.8",
+      "giteeAsset": "https://gitee.com/akcg/flipview/releases/download/v0.4.8/Flip-0.4.8-macos-universal.zip",
+      "githubAsset": "https://github.com/akchansun/flipview/releases/download/v0.4.8/Flip-0.4.8-macos-universal.zip"
+    }
+  },
+  "linux": {
+    "version": "1.2.3",
+    "notes": {
+      "zh": "帮助菜单可打开使用提示（与启动说明相同）与产品页；F1 打开提示。需 Qt 6。",
+      "en": "Help menu opens usage tips (same as launch tips) and the product page; F1 opens tips. Needs Qt 6."
+    },
+    "download": {
+      "site": "https://www.ak129.cn/flip/#linux",
+      "gitee": "https://gitee.com/akcg/flip-linux/releases/tag/v1.2.3",
+      "github": "https://github.com/akchansun/flip-linux/releases/tag/v1.2.3",
+      "giteeAsset": "https://gitee.com/akcg/flip-linux/releases/download/v1.2.3/flip-linux-1.2.3-amd64.tar.gz",
+      "githubAsset": "https://github.com/akchansun/flip-linux/releases/download/v1.2.3/flip-linux-1.2.3-amd64.tar.gz"
+    }
+  }
+}
