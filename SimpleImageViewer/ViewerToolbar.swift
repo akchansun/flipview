@@ -40,12 +40,11 @@ struct ViewerToolbarBar: View {
         .background(.bar)
         .background {
             GeometryReader { geo in
-                Color.clear.preference(key: ToolbarWidthKey.self, value: geo.size.width)
-            }
-        }
-        .onPreferenceChange(ToolbarWidthKey.self) { width in
-            if abs(width - barWidth) > 0.5 {
-                barWidth = width
+                Color.clear
+                    .onAppear { barWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, width in
+                        barWidth = width
+                    }
             }
         }
         .popover(isPresented: $session.showAdjustColor, arrowEdge: .bottom) {
@@ -730,13 +729,6 @@ struct AdjustSizeSheet: View {
             percentText = next
             syncingSize = false
         }
-    }
-}
-
-private struct ToolbarWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
