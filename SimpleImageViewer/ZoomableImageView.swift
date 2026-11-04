@@ -213,6 +213,10 @@ final class ImageViewerHostView: NSView {
             handle.cursor.set()
             return
         }
+        if let handle = overlay.markupHandleAt(windowPoint: point) {
+            handle.cursor.set()
+            return
+        }
         if overlay.markupTool != .crop, overlay.isHoveringMarkup(atWindowPoint: point) {
             NSCursor.openHand.set()
             return
@@ -314,7 +318,7 @@ final class PageHitOverlay: NSView {
             if let field = textEditor {
                 let imageRect = imageRectInOverlay?() ?? bounds
                 let rect = imageRect.width > 1 ? imageRect : bounds
-                field.font = .systemFont(ofSize: ImageMarkup.textPointSize(fontSize: markupFontSize, in: rect), weight: .semibold)
+                field.font = .systemFont(ofSize: ImageMarkup.textPointSize(fontSize: markupFontSize, in: rect), weight: .regular)
             }
         }
     }
@@ -388,6 +392,7 @@ final class PageHitOverlay: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
+        NSGraphicsContext.current?.shouldAntialias = true
         guard markupTool == .crop, let cropSelection else { return }
         let imageRect = imageRectInOverlay?() ?? .zero
         guard imageRect.width > 1 else { return }
@@ -414,6 +419,16 @@ final class PageHitOverlay: NSView {
         guard imageRect.width > 1 else { return nil }
         let local = convert(point, from: nil)
         return ImageMarkup.cropHandleHit(cropSelection, at: local, imageRect: imageRect)
+    }
+
+    func markupHandleAt(windowPoint point: NSPoint) -> MarkupHandle? {
+        guard markupTool != .crop else { return nil }
+        let item = draft ?? markupItems.first(where: { $0.id == selectedID })
+        guard let item else { return nil }
+        let imageRect = imageRectInOverlay?() ?? .zero
+        guard imageRect.width > 1 else { return nil }
+        let local = convert(point, from: nil)
+        return ImageMarkup.handleHit(item, at: local, imageRect: imageRect)
     }
 
     func syncCanvas() {
@@ -868,22 +883,22 @@ final class PageHitOverlay: NSView {
             max(bounds.width - 16, 80),
             max(existingText.isEmpty ? pointSize * 10 : textSize.width + 18, pointSize * 6)
         )
-        let fieldHeight = max(pointSize + 10, 22)
+        let fieldHeight = max(pointSize + 6, 18)
         var fieldX = origin.x
-        var fieldY = origin.y - 2
+        var fieldY = origin.y - 1
         fieldX = min(max(4, fieldX), max(4, bounds.width - width - 4))
         fieldY = min(max(2, fieldY), max(2, bounds.height - fieldHeight - 2))
         let field = NSTextField(frame: NSRect(x: fieldX, y: fieldY, width: width, height: fieldHeight))
         field.placeholderString = LanguageManager.shared.t(.textPlaceholder)
-        field.font = .systemFont(ofSize: pointSize, weight: .semibold)
+        field.font = .systemFont(ofSize: pointSize, weight: .regular)
         field.textColor = color.nsColor
-        field.backgroundColor = NSColor.textBackgroundColor.withAlphaComponent(0.92)
-        field.drawsBackground = true
+        field.backgroundColor = .clear
+        field.drawsBackground = false
         field.isBezeled = false
         field.isBordered = false
         field.isEditable = true
         field.isSelectable = true
-        field.focusRingType = .exterior
+        field.focusRingType = .none
         if let cell = field.cell as? NSTextFieldCell {
             cell.wraps = false
             cell.isScrollable = true
