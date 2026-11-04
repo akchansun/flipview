@@ -349,6 +349,8 @@ int runSelfTest()
             expect(script.write(body) == body.size(), "helper script bytes");
             script.close();
             QFile::setPermissions(scriptPath, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+#ifndef Q_OS_WIN
+            // In-place swap is a bash helper used on Linux / UOS / Kylin only.
             QProcess helperProc;
             helperProc.start(QStringLiteral("/bin/bash"), {scriptPath});
             expect(helperProc.waitForFinished(15000) && helperProc.exitCode() == 0,
@@ -358,6 +360,7 @@ int runSelfTest()
                        && swapped.readAll() == QByteArrayLiteral("new-flip-binary"),
                    "helper replaced Flip with staged binary");
             expect(!QFile::exists(staged), "helper removed staged Flip.flip-new");
+#endif
         }
 
         const QString archive = pack.path() + QStringLiteral("/pkg.tar.gz");
