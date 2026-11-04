@@ -1,0 +1,51 @@
+name: Desktop
+
+on:
+  push:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop.yml"
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt 6
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-base-dev-tools qt6-image-formats-plugins
+      - name: Build
+        run: |
+          cmake -S desktop -B desktop/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build desktop/build
+      - name: Self-test
+        run: QT_QPA_PLATFORM=offscreen ./desktop/build/Flip --self-test
+      - name: Tarball
+        run: ./desktop/scripts/make-tarball.sh
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.3"
+          cache: true
+      - name: Build
+        shell: bash
+        run: |
+          cmake -S desktop -B desktop/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build desktop/build --config Release
+      - name: Self-test
+        shell: bash
+        run: |
+          exe=desktop/build/Flip.exe
+          if [[ ! -x "$exe" ]]; then exe=desktop/build/Release/Flip.exe; fi
+          ./$exe --self-test

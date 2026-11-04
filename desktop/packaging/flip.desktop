@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Flip
+Name[zh_CN]=看图
+Name[zh]=看图
+GenericName=Image Viewer
+GenericName[zh_CN]=图片查看器
+GenericName[zh]=图片查看器
+Comment=Open one image, then page through the same folder
+Comment[zh_CN]=打开一张图片，在同一文件夹里前后翻页
+Comment[zh]=打开一张图片，在同一文件夹里前后翻页
+Exec=Flip %F
+Icon=flip
+Terminal=false
+StartupNotify=true
+Categories=Graphics;Viewer;2DGraphics;RasterGraphics;
+MimeType=image/jpeg;image/png;image/bmp;image/gif;image/webp;image/tiff;image/x-portable-pixmap;image/x-portable-graymap;image/x-portable-bitmap;image/x-tga;image/x-xbitmap;image/x-xpixmap;image/x-icon;
+Keywords=photo;picture;viewer;image;看图;图片;
