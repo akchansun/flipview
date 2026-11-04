@@ -14,7 +14,7 @@
   <meta property="og:url" content="https://www.ak129.cn/flip/">
   <meta property="og:image" content="https://www.ak129.cn/flip/images/x-logo.png">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Flip","applicationCategory":"MultimediaApplication","operatingSystem":"macOS, Linux, Windows","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"url":"https://www.ak129.cn/flip/","downloadUrl":"https://www.ak129.cn/flip/download.php","license":"https://gitee.com/akcg/flipview/blob/main/LICENSE","description":"轻量免费看图：同目录翻页；Linux / Windows 1.3.0 同步标注、裁剪与轻量编辑。Intel 与 Apple Silicon 通用。","provider":{"@type":"Organization","name":"喜相逢科技","url":"https://www.ak129.cn/","telephone":"+86-177-7296-8885"}}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Flip","applicationCategory":"MultimediaApplication","operatingSystem":"macOS, Linux, Windows","softwareVersion":"0.6.16","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"},"url":"https://www.ak129.cn/flip/","downloadUrl":"https://github.com/akchansun/flipview/releases/download/v0.6.16/Flip-0.6.16-macos-universal.zip","license":"https://gitee.com/akcg/flipview/blob/main/LICENSE","description":"轻量免费看图：同目录翻页；macOS 0.6.16 含标注、裁剪与轻量编辑。Intel 与 Apple Silicon 通用。","provider":{"@type":"Organization","name":"喜相逢科技","url":"https://www.ak129.cn/","telephone":"+86-177-7296-8885"}}
   </script>
   <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <style>
@@ -236,13 +236,13 @@
           <h1>Flip</h1>
         </div>
       </div>
-      <p class="lead">轻量看图，同目录翻页——像 Windows 照片查看器那样，打开一张图就能左右切换整夹照片。macOS 版支持触控板与鼠标翻页；Linux / Windows / 统信 UOS / 银河麒麟 / Deepin（Qt 1.3.0）已同步标注、裁剪与轻量编辑，不必为改图再切软件。<strong>完全免费</strong>（MIT），由<a href="https://www.ak129.cn/">安康喜相逢科技</a>维护。</p>
+      <p class="lead">轻量看图，同目录翻页——像 Windows 照片查看器那样，打开一张图就能左右切换整夹照片。macOS 最新版 <strong>0.6.16</strong> 已含标注、裁剪与轻量编辑；Linux / Windows / 统信 UOS / 银河麒麟 / Deepin（Qt 1.3.0）同一套界面，不必为改图再切软件。<strong>完全免费</strong>（MIT），由<a href="https://www.ak129.cn/">安康喜相逢科技</a>维护。</p>
       <div class="actions">
-        <a href="/flip/download.php" class="btn btn-primary"><i class="fab fa-apple"></i> 下载 macOS 版（0.4.8）</a>
-        <a href="https://github.com/akchansun/flipview/releases/tag/v0.6.16" class="btn btn-outline" target="_blank" rel="noopener"><i class="fab fa-github"></i> GitHub macOS 0.6.16</a>
-        <a href="/flip/download.php?src=gitee" class="btn btn-outline"><i class="fab fa-git-alt"></i> Gitee 下载</a>
+        <a href="https://github.com/akchansun/flipview/releases/download/v0.6.16/Flip-0.6.16-macos-universal.zip" class="btn btn-primary"><i class="fab fa-apple"></i> 下载 macOS 版（0.6.16）</a>
+        <a href="https://github.com/akchansun/flipview/releases/tag/v0.6.16" class="btn btn-outline" target="_blank" rel="noopener"><i class="fab fa-github"></i> GitHub 发布页</a>
         <a href="https://gitee.com/akcg/flipview" class="btn btn-outline" target="_blank" rel="noopener"><i class="fas fa-code-branch"></i> Gitee 源码</a>
-        <a href="#notes" class="btn btn-outline">1.3.0 更新说明</a>
+        <a href="#macos-notes" class="btn btn-outline">0.6.16 更新说明</a>
+        <a href="#notes" class="btn btn-outline">Linux 1.3.0</a>
         <a href="tel:17772968885" class="btn btn-outline">电话咨询</a>
       </div>
       <p class="flip-stats" id="flip-stats" aria-live="polite">访问 <strong id="stat-visits">—</strong> · 下载 <strong id="stat-downloads">—</strong></p>
@@ -295,6 +295,37 @@
         <div class="feat-item"><strong>想要轻量工具</strong><span>不绑账号、不弹广告，打开就能看</span></div>
         <div class="feat-item"><strong>开发者 / 爱好者</strong><span>MIT 源码可学可改，欢迎 Star 与反馈</span></div>
       </div>
+    </section>
+
+    <section class="steps" id="macos-notes">
+      <h2>更新说明 · macOS 0.6.16</h2>
+      <p class="notes-meta">2026年11月4日 · 通用包（Intel + Apple Silicon）· 需 macOS 14+</p>
+      <p class="notes-lead">当前正式版是 <strong>0.6.16</strong>。打开一张图，就可以在 Flip 里翻页、裁剪、画标注、改颜色改尺寸，不必再切到「预览」。</p>
+      <h3 class="notes-h">新功能</h3>
+      <ul>
+        <li>顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器 / 移除背景、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、文字背景、颜色、线宽、字号、存储、打印</li>
+        <li>文字可加微信式彩色圆角背景，字自动用对比色；输入时就能看到底</li>
+        <li>顶部工具图标悬停显示名称</li>
+        <li>窄窗口按「预览」排列：主栏加 <code>&gt;&gt;</code> 溢出，点标注才出现第二行画笔和颜色</li>
+        <li>线宽选择与「预览」相同：横线由细到粗，点开勾选</li>
+        <li>裁剪可拖八个点、移动选区、Shift 正方形、显示像素尺寸；⌘A 全选，回车或双击裁切</li>
+        <li>已有文字可再点编辑、改字号；标注可选中后拖动、改色改粗细改填充，形状可拉伸</li>
+        <li>从剪贴板新建（⌘N）；检查器含 DPI / 相机 / 曝光</li>
+        <li>向左 / 向右旋转 90°（⌘L / ⌘R）、水平 / 垂直翻转</li>
+        <li>拷贝、存储 / 存储为（按原图分辨率写入）、打印（⌘P）</li>
+      </ul>
+      <h3 class="notes-h">修复</h3>
+      <ul>
+        <li>标注 / 裁剪手感更接近「预览」：圆形控点、实心箭头、平滑笔迹、细白裁剪框、文字不再粗描边</li>
+        <li>文字输入结束立刻回到浏览选择光标，不必再点一次工具</li>
+        <li>文字点一下就能改，输入框贴着字，不再弹出很大一块也抢不走键盘</li>
+        <li>最细标注是发丝线；点选和选中虚线贴着笔画外边，不再用大包围盒</li>
+        <li>标注线条粗细可调；选中后再改色/粗细作用在当前项</li>
+        <li>撤销按操作回退；选中标注时 Delete 不会误删整张图</li>
+        <li>标注不再画到顶部工具条上面</li>
+        <li>放大以指针/手势位置为焦点，不再往左跳</li>
+        <li>访达双击打开后窗口到最前</li>
+      </ul>
     </section>
 
     <section class="steps" id="notes">
@@ -353,7 +384,7 @@
     <section class="steps">
       <h2>macOS 安装说明</h2>
       <ol>
-        <li>下载上方 zip，解压得到 <code>Flip.app</code>。本站直链目前仍是 <strong>0.4.8</strong>；GitHub 已提供 <a href="https://github.com/akchansun/flipview/releases/tag/v0.6.16" target="_blank" rel="noopener">0.6.16</a>（含标注与轻量编辑工具条）。</li>
+        <li>点上方「下载 macOS 版（0.6.16）」得到 zip，解压得到 <code>Flip.app</code>。安装包来自 <a href="https://github.com/akchansun/flipview/releases/tag/v0.6.16" target="_blank" rel="noopener">GitHub v0.6.16</a>（通用包，含标注与轻量编辑）。Gitee 上目前还没有同步这个 zip。</li>
         <li>拖到「应用程序」，或放到任意位置。</li>
         <li><strong>第一次打开：</strong>不要双击。按住 <kbd>Control</kbd> 键点击（或右键）<code>Flip.app</code> → 选「打开」→ 再点「打开」。之后即可正常双击。</li>
         <li>若已出现「未打开 Flip / 移到废纸篓」：点「完成」，打开<strong>系统设置 → 隐私与安全性</strong>，滚到下方点「仍要打开」。</li>

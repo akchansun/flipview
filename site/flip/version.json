@@ -3,18 +3,17 @@
   "product": "Flip",
   "site": "https://www.ak129.cn/flip/",
   "macos": {
-    "version": "0.4.8",
-    "minOs": "macOS 12",
+    "version": "0.6.16",
+    "minOs": "macOS 14",
     "notes": {
-      "zh": "访达双击打开后窗口到最前；去掉 0.4.7 抢前台导致的变慢与偶发关了又开。菜单仍可「设为默认看图软件」。",
-      "en": "Bring Flip in front after Finder open; remove 0.4.7 self-relaunch slowdowns and reopen glitches. Set as Default Image Viewer remains."
+      "zh": "最新 0.6.16：顶部工具条含标注、裁剪、调色与微信式文字背景；窄窗按「预览」用 >> 收起；发丝细线，选中贴着笔画外边。访达打开后窗口到最前。",
+      "en": "0.6.16: Preview-style toolbar with markup, crop, color, and WeChat text background; hairline stroke. Flip comes in front of Finder on open."
     },
     "download": {
-      "site": "https://www.ak129.cn/flip/download.php",
-      "gitee": "https://gitee.com/akcg/flipview/releases/tag/v0.4.8",
-      "github": "https://github.com/akchansun/flipview/releases/tag/v0.4.8",
-      "giteeAsset": "https://gitee.com/akcg/flipview/releases/download/v0.4.8/Flip-0.4.8-macos-universal.zip",
-      "githubAsset": "https://github.com/akchansun/flipview/releases/download/v0.4.8/Flip-0.4.8-macos-universal.zip"
+      "site": "https://www.ak129.cn/flip/",
+      "gitee": "https://gitee.com/akcg/flipview",
+      "github": "https://github.com/akchansun/flipview/releases/tag/v0.6.16",
+      "githubAsset": "https://github.com/akchansun/flipview/releases/download/v0.6.16/Flip-0.6.16-macos-universal.zip"
     }
   },
   "linux": {
