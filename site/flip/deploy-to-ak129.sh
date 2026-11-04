@@ -6,7 +6,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 HOST="${AK129_SSH_HOST:-ak129-vip}"
-DEST="${AK129_FLIP_DIR:-/var/www/cms/flip}"
+DEST="${AK129_FLIP_DIR:-/var/www/static-home/flip}"
 
 for f in index.html version.json; do
   if [[ ! -f "${ROOT}/${f}" ]]; then
@@ -15,7 +15,7 @@ for f in index.html version.json; do
   fi
 done
 
-ssh -o BatchMode=yes -o IdentitiesOnly=yes "$HOST" "hostname; whoami; ls -ld /var/www /var/www/cms /var/www/cms/flip /var/www/html/flip 2>/dev/null || true"
+ssh -o BatchMode=yes -o IdentitiesOnly=yes "$HOST" "hostname; whoami; ls -ld /var/www/static-home/flip /var/www/cms/flip /var/www/html/flip 2>/dev/null || true"
 
 if ! ssh -o BatchMode=yes -o IdentitiesOnly=yes "$HOST" "test -d '$DEST'"; then
   echo "remote dir missing: ${DEST}" >&2
