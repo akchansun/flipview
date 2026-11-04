@@ -20,7 +20,7 @@ Flip 是一款免费开源的 macOS 看图工具，用法接近经典 Windows �
 - 同目录上一张 / 下一张（←→、双指滑动、点击左右约 1/3 区域）
 - 小图 100%、大图等比缩小适应窗口并居中
 - 右键：打开文件夹、访达中显示、用其他 App 打开
-- 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器 / 移除背景、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、文字背景、颜色、线条粗细、文字大小、存储、打印（窗口变窄时折成两行或收入「标注 / 更多」，不再左右滑；图标悬停显示名称；裁剪可拖八个点并显示像素；标注可拖动 / 改色改粗细 / 填充，Shift 约束形状；文字可加微信式色块底）
+- 顶部工具条：翻页、缩放、旋转翻转、裁剪 / 调色 / 改尺寸 / 检查器 / 移除背景、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、文字背景、颜色、线条粗细、文字大小、存储、打印（窄窗口按「预览」：主栏加 `>>` 溢出，点标注才出第二行工具；图标悬停显示名称；裁剪可拖八个点并显示像素；标注可拖动 / 改色改粗细 / 填充，Shift 约束形状；文字可加微信式色块底）
 - 旋转 / 翻转、拷贝、存储 / 存储为、打印（存储按原图分辨率，不覆盖成屏幕预览图）
 - 界面中英可切换
 - 帮助菜单「Flip 帮助」显示与启动相同的使用提示，并可打开产品页（不使用系统 Help Book）
@@ -107,7 +107,7 @@ Flip is a free, open-source macOS image viewer. Open one image, then flip throug
 - Same-folder previous / next (arrows, trackpad swipe, click left/right thirds)
 - Scale-down-only fit, centered
 - Context menu: open folder, Reveal in Finder, Open With
-- Top toolbar: browse, zoom, rotate/flip, crop / adjust color / adjust size / inspector / remove background, draw / line / arrow / rectangle / rounded rectangle / ellipse / highlight / text, fill, text background, color, line width, font size, save, print (narrow windows wrap to two rows or a Markup / More menu instead of scrolling; hover a tool icon to see its name)
+- Top toolbar: browse, zoom, rotate/flip, crop / adjust color / adjust size / inspector / remove background, draw / line / arrow / rectangle / rounded rectangle / ellipse / highlight / text, fill, text background, color, line width, font size, save, print (narrow windows follow Preview: overflow `>>` on the main bar, markup tools on a second row; hover a tool icon to see its name)
 - Rotate / flip, copy, save / save as, print (save replays edits at full resolution)
 - English / 简体中文 UI
 - Help menu shows the same usage tips as launch (plus a link to the product page); no Help Book
