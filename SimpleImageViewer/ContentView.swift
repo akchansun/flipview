@@ -31,7 +31,7 @@ struct ContentView: View {
                         .fixedSize()
                         .position(
                             x: min(max(toolbarTip.x, 36), max(36, geo.size.width - 36)),
-                            y: 50
+                            y: toolbarTip.y
                         )
                 }
             }

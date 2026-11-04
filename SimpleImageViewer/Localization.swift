@@ -137,6 +137,8 @@ enum L10n {
         case toolHighlight
         case toolText
         case toolCrop
+        case toolbarMarkup
+        case toolbarMore
         case markupFill
         case markupStroke
         case removeBackground
@@ -304,6 +306,8 @@ enum L10n {
         .toolHighlight: "Highlight",
         .toolText: "Text",
         .toolCrop: "Crop selection",
+        .toolbarMarkup: "Markup",
+        .toolbarMore: "More",
         .markupFill: "Fill",
         .markupStroke: "Stroke",
         .removeBackground: "Remove Background",
@@ -478,6 +482,8 @@ enum L10n {
         .toolHighlight: "高亮",
         .toolText: "文字",
         .toolCrop: "框选裁剪",
+        .toolbarMarkup: "标注",
+        .toolbarMore: "更多",
         .markupFill: "填充",
         .markupStroke: "描边",
         .removeBackground: "移除背景",

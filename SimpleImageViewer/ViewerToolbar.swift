@@ -3,6 +3,7 @@ import SwiftUI
 struct ToolbarHoverTip: Equatable {
     var text: String
     var x: CGFloat
+    var y: CGFloat
 }
 
 /// Always-on top bar: browse, zoom, rotate/flip, markup, save, print.
@@ -11,174 +12,303 @@ struct ViewerToolbarBar: View {
     @EnvironmentObject private var language: LanguageManager
     @Binding var hoverTip: ToolbarHoverTip?
     @State private var hoverTask: Task<Void, Never>?
+    @State private var barWidth: CGFloat = 1600
+    @State private var showMarkupPad = false
+    @State private var showMorePad = false
+
+    private enum Density: Equatable {
+        case full
+        case twoRow
+        case compact
+    }
+
+    private var density: Density {
+        if barWidth >= 1360 { return .full }
+        if barWidth >= 900 { return .twoRow }
+        return .compact
+    }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 3) {
-                group {
-                    iconButton("chevron.left", key: .previousImage, enabled: session.canNavigate) {
-                        session.navigate(.previous)
-                    }
-                    iconButton("chevron.right", key: .nextImage, enabled: session.canNavigate) {
-                        session.navigate(.next)
-                    }
-                }
-
-                hairline
-
-                group {
-                    iconButton("minus.magnifyingglass", key: .zoomOut) {
-                        session.requestZoom(.out)
-                    }
-                    iconButton("arrow.down.right.and.arrow.up.left", key: .fitToWindow) {
-                        session.requestZoom(.fit)
-                    }
-                    iconButton("plus.magnifyingglass", key: .zoomIn) {
-                        session.requestZoom(.in)
-                    }
-                    iconButton("square", key: .actualSize) {
-                        session.requestZoom(.actual)
-                    }
-                }
-
-                hairline
-
-                group {
-                    iconButton("rotate.left", key: .rotateLeft) {
-                        session.apply(.rotateLeft)
-                    }
-                    iconButton("rotate.right", key: .rotateRight) {
-                        session.apply(.rotateRight)
-                    }
-                    iconButton("arrow.left.and.right.righttriangle.left.righttriangle.right", key: .flipHorizontal) {
-                        session.apply(.flipHorizontal)
-                    }
-                    iconButton("arrow.up.and.down.righttriangle.up.righttriangle.down", key: .flipVertical) {
-                        session.apply(.flipVertical)
-                    }
-                }
-
-                hairline
-
-                group {
-                    Button {
-                        guard session.hasImage else { return }
-                        if session.markupTool == .crop, session.cropSelection != nil {
-                            session.applyCrop()
-                        } else {
-                            session.setMarkupTool(.crop)
-                        }
-                    } label: {
-                        Image(systemName: "crop")
-                            .font(.system(size: 13, weight: .medium))
-                            .frame(width: 28, height: 24)
-                            .opacity(session.hasImage ? 1 : 0.35)
-                            .background(
-                                session.markupTool == .crop ? Color.accentColor.opacity(0.28) : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .toolbarHoverTip(language.t(session.cropSelection == nil ? .toolCrop : .crop), schedule: scheduleHoverTip)
-                    Button {
-                        guard session.hasImage else { return }
-                        session.beginColorAdjust()
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 13, weight: .medium))
-                            .frame(width: 28, height: 24)
-                            .opacity(session.hasImage ? 1 : 0.35)
-                    }
-                    .buttonStyle(.plain)
-                    .toolbarHoverTip(language.t(.adjustColor), schedule: scheduleHoverTip)
-                    .popover(isPresented: $session.showAdjustColor, arrowEdge: .bottom) {
-                        ColorAdjustPopover()
-                            .environmentObject(session)
-                            .environmentObject(language)
-                    }
-                    Button {
-                        guard session.hasImage else { return }
-                        session.showAdjustSize = true
-                    } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.system(size: 13, weight: .medium))
-                            .frame(width: 28, height: 24)
-                            .opacity(session.hasImage ? 1 : 0.35)
-                    }
-                    .buttonStyle(.plain)
-                    .toolbarHoverTip(language.t(.adjustSize), schedule: scheduleHoverTip)
-                    Button {
-                        guard session.hasImage else { return }
-                        session.showInspector.toggle()
-                    } label: {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 13, weight: .medium))
-                            .frame(width: 28, height: 24)
-                            .opacity(session.hasImage ? 1 : 0.35)
-                    }
-                    .buttonStyle(.plain)
-                    .toolbarHoverTip(language.t(.inspector), schedule: scheduleHoverTip)
-                    .popover(isPresented: $session.showInspector, arrowEdge: .bottom) {
-                        InspectorPopover()
-                            .environmentObject(session)
-                            .environmentObject(language)
-                    }
-                    iconButton("person.fill.viewfinder", key: .removeBackground) {
-                        session.removeBackground()
-                    }
-                }
-
-                hairline
-
-                group {
-                    toolButton(.browse, symbol: "hand.point.up.left", key: .toolBrowse)
-                    toolButton(.pen, symbol: "pencil", key: .toolPen)
-                    toolButton(.line, symbol: "line.diagonal", key: .toolLine)
-                    toolButton(.arrow, symbol: "arrow.up.right", key: .toolArrow)
-                    toolButton(.rect, symbol: "rectangle", key: .toolRect)
-                    toolButton(.roundRect, symbol: "rectangle.roundedtop", key: .toolRoundRect)
-                    toolButton(.oval, symbol: "oval", key: .toolOval)
-                    toolButton(.highlight, symbol: "highlighter", key: .toolHighlight)
-                    toolButton(.text, symbol: "textformat", key: .toolText)
-                }
-
-                fillToggle
-                textBackgroundButton
-                colorDots
-                weightButtons
-                fontSizeButtons
-
-                Spacer(minLength: 12)
-
-                group {
-                    iconButton("arrow.uturn.backward", key: .undoEdit, enabled: session.isDirty || session.isEditingMarkupText) {
-                        if session.undoTextEditorIfNeeded() { return }
-                        session.undoLastEdit()
-                    }
-                    iconButton("square.and.arrow.down", key: .save, enabled: session.isDirty) {
-                        session.saveInPlace()
-                    }
-                    iconButton("square.and.arrow.up", key: .saveAsEllipsis) {
-                        session.saveAs()
-                    }
-                    iconButton("printer", key: .printEllipsis) {
-                        session.printCurrent()
-                    }
-                    iconButton("trash", key: .moveToTrashEllipsis) {
-                        session.requestDelete()
-                    }
-                }
+        VStack(spacing: 0) {
+            mainRow
+            if density == .twoRow {
+                Divider()
+                markupRow
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
         }
-        .frame(height: 38)
         .background(.bar)
         .coordinateSpace(name: "toolbar")
+        .background {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { barWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, width in
+                        barWidth = width
+                    }
+            }
+        }
+        .popover(isPresented: $session.showAdjustColor, arrowEdge: .bottom) {
+            ColorAdjustPopover()
+                .environmentObject(session)
+                .environmentObject(language)
+        }
+        .popover(isPresented: $session.showInspector, arrowEdge: .bottom) {
+            InspectorPopover()
+                .environmentObject(session)
+                .environmentObject(language)
+        }
+        .onChange(of: density) { _, new in
+            if new != .compact {
+                showMarkupPad = false
+                showMorePad = false
+            }
+        }
+        .onChange(of: session.showAdjustColor) { _, on in
+            if on { showMorePad = false }
+        }
+        .onChange(of: session.showInspector) { _, on in
+            if on { showMorePad = false }
+        }
+        .onChange(of: session.showAdjustSize) { _, on in
+            if on { showMorePad = false }
+        }
         .onDisappear {
             hoverTask?.cancel()
             hoverTip = nil
         }
+    }
+
+    private var mainRow: some View {
+        HStack(spacing: 3) {
+            navGroup
+            hairline
+            zoomGroup
+            switch density {
+            case .full:
+                hairline
+                transformGroup
+                hairline
+                adjustGroup
+                hairline
+                markupToolGroup
+                styleCluster
+            case .twoRow:
+                hairline
+                transformGroup
+                hairline
+                adjustGroup
+            case .compact:
+                hairline
+                overflowButton(
+                    symbol: markupGlyph,
+                    key: .toolbarMarkup,
+                    selected: session.markupTool.isMarkupInk || showMarkupPad
+                ) {
+                    showMorePad = false
+                    showMarkupPad.toggle()
+                }
+                .popover(isPresented: $showMarkupPad, arrowEdge: .bottom) {
+                    markupPad
+                }
+                overflowButton(symbol: "ellipsis.circle", key: .toolbarMore, selected: showMorePad) {
+                    showMarkupPad = false
+                    showMorePad.toggle()
+                }
+                .popover(isPresented: $showMorePad, arrowEdge: .bottom) {
+                    morePad
+                }
+            }
+            Spacer(minLength: 8)
+            fileGroup
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(height: 38)
+    }
+
+    private var markupRow: some View {
+        HStack(spacing: 3) {
+            markupToolGroup
+            styleCluster
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(height: 38)
+    }
+
+    private var navGroup: some View {
+        group {
+            iconButton("chevron.left", key: .previousImage, enabled: session.canNavigate) {
+                session.navigate(.previous)
+            }
+            iconButton("chevron.right", key: .nextImage, enabled: session.canNavigate) {
+                session.navigate(.next)
+            }
+        }
+    }
+
+    private var zoomGroup: some View {
+        group {
+            iconButton("minus.magnifyingglass", key: .zoomOut) {
+                session.requestZoom(.out)
+            }
+            iconButton("arrow.down.right.and.arrow.up.left", key: .fitToWindow) {
+                session.requestZoom(.fit)
+            }
+            iconButton("plus.magnifyingglass", key: .zoomIn) {
+                session.requestZoom(.in)
+            }
+            iconButton("square", key: .actualSize) {
+                session.requestZoom(.actual)
+            }
+        }
+    }
+
+    private var transformGroup: some View {
+        group {
+            iconButton("rotate.left", key: .rotateLeft) {
+                session.apply(.rotateLeft)
+            }
+            iconButton("rotate.right", key: .rotateRight) {
+                session.apply(.rotateRight)
+            }
+            iconButton("arrow.left.and.right.righttriangle.left.righttriangle.right", key: .flipHorizontal) {
+                session.apply(.flipHorizontal)
+            }
+            iconButton("arrow.up.and.down.righttriangle.up.righttriangle.down", key: .flipVertical) {
+                session.apply(.flipVertical)
+            }
+        }
+    }
+
+    private var adjustGroup: some View {
+        group {
+            cropButton
+            iconButton("slider.horizontal.3", key: .adjustColor) {
+                session.beginColorAdjust()
+            }
+            iconButton("arrow.up.left.and.arrow.down.right", key: .adjustSize) {
+                session.showAdjustSize = true
+            }
+            iconButton("info.circle", key: .inspector) {
+                session.showInspector.toggle()
+            }
+            iconButton("person.fill.viewfinder", key: .removeBackground) {
+                session.removeBackground()
+            }
+        }
+    }
+
+    private var markupToolGroup: some View {
+        group {
+            toolButton(.browse, symbol: "hand.point.up.left", key: .toolBrowse)
+            toolButton(.pen, symbol: "pencil", key: .toolPen)
+            toolButton(.line, symbol: "line.diagonal", key: .toolLine)
+            toolButton(.arrow, symbol: "arrow.up.right", key: .toolArrow)
+            toolButton(.rect, symbol: "rectangle", key: .toolRect)
+            toolButton(.roundRect, symbol: "rectangle.roundedtop", key: .toolRoundRect)
+            toolButton(.oval, symbol: "oval", key: .toolOval)
+            toolButton(.highlight, symbol: "highlighter", key: .toolHighlight)
+            toolButton(.text, symbol: "textformat", key: .toolText)
+        }
+    }
+
+    private var styleCluster: some View {
+        HStack(spacing: 3) {
+            fillToggle
+            textBackgroundButton
+            colorDots
+            weightButtons
+            fontSizeButtons
+        }
+    }
+
+    private var fileGroup: some View {
+        group {
+            iconButton("arrow.uturn.backward", key: .undoEdit, enabled: session.isDirty || session.isEditingMarkupText) {
+                if session.undoTextEditorIfNeeded() { return }
+                session.undoLastEdit()
+            }
+            iconButton("square.and.arrow.down", key: .save, enabled: session.isDirty) {
+                session.saveInPlace()
+            }
+            iconButton("square.and.arrow.up", key: .saveAsEllipsis) {
+                session.saveAs()
+            }
+            iconButton("printer", key: .printEllipsis) {
+                session.printCurrent()
+            }
+            iconButton("trash", key: .moveToTrashEllipsis) {
+                session.requestDelete()
+            }
+        }
+    }
+
+    private var cropButton: some View {
+        Button {
+            guard session.hasImage else { return }
+            if session.markupTool == .crop, session.cropSelection != nil {
+                session.applyCrop()
+            } else {
+                session.setMarkupTool(.crop)
+            }
+        } label: {
+            Image(systemName: "crop")
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 24)
+                .opacity(session.hasImage ? 1 : 0.35)
+                .background(
+                    session.markupTool == .crop ? Color.accentColor.opacity(0.28) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .toolbarHoverTip(language.t(session.cropSelection == nil ? .toolCrop : .crop), schedule: scheduleHoverTip)
+    }
+
+    private var markupGlyph: String {
+        switch session.markupTool {
+        case .browse, .crop: return "scribble.variable"
+        case .pen: return "pencil"
+        case .line: return "line.diagonal"
+        case .arrow: return "arrow.up.right"
+        case .rect: return "rectangle"
+        case .roundRect: return "rectangle.roundedtop"
+        case .oval: return "oval"
+        case .highlight: return "highlighter"
+        case .text: return "textformat"
+        }
+    }
+
+    private var markupPad: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            markupToolGroup
+            styleCluster
+        }
+        .padding(12)
+    }
+
+    private var morePad: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            transformGroup
+            adjustGroup
+        }
+        .padding(12)
+    }
+
+    private func overflowButton(symbol: String, key: L10n.Key, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 28, height: 24)
+                .background(
+                    selected ? Color.accentColor.opacity(0.28) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .toolbarHoverTip(language.t(key), schedule: scheduleHoverTip)
     }
 
     private func scheduleHoverTip(_ tip: ToolbarHoverTip?) {
@@ -609,7 +739,7 @@ private extension View {
 private struct ToolbarHoverTipModifier: ViewModifier {
     let text: String
     let schedule: (ToolbarHoverTip?) -> Void
-    @State private var midX: CGFloat = 0
+    @State private var anchor = CGPoint(x: 40, y: 50)
 
     func body(content: Content) -> some View {
         content
@@ -618,15 +748,15 @@ private struct ToolbarHoverTipModifier: ViewModifier {
                 GeometryReader { geo in
                     let frame = geo.frame(in: .named("toolbar"))
                     Color.clear
-                        .onAppear { midX = frame.midX }
+                        .onAppear { anchor = CGPoint(x: frame.midX, y: frame.maxY + 14) }
                         .onChange(of: frame) { _, new in
-                            midX = new.midX
+                            anchor = CGPoint(x: new.midX, y: new.maxY + 14)
                         }
                 }
             )
             .onHover { inside in
                 if inside {
-                    schedule(ToolbarHoverTip(text: text, x: midX))
+                    schedule(ToolbarHoverTip(text: text, x: anchor.x, y: anchor.y))
                 } else {
                     schedule(nil)
                 }
