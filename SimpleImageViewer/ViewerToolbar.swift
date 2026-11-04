@@ -1,9 +1,16 @@
 import SwiftUI
 
+struct ToolbarHoverTip: Equatable {
+    var text: String
+    var x: CGFloat
+}
+
 /// Always-on top bar: browse, zoom, rotate/flip, markup, save, print.
 struct ViewerToolbarBar: View {
     @EnvironmentObject private var session: ImageSession
     @EnvironmentObject private var language: LanguageManager
+    @Binding var hoverTip: ToolbarHoverTip?
+    @State private var hoverTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -55,6 +62,7 @@ struct ViewerToolbarBar: View {
 
                 group {
                     Button {
+                        guard session.hasImage else { return }
                         if session.markupTool == .crop, session.cropSelection != nil {
                             session.applyCrop()
                         } else {
@@ -64,49 +72,52 @@ struct ViewerToolbarBar: View {
                         Image(systemName: "crop")
                             .font(.system(size: 13, weight: .medium))
                             .frame(width: 28, height: 24)
+                            .opacity(session.hasImage ? 1 : 0.35)
                             .background(
                                 session.markupTool == .crop ? Color.accentColor.opacity(0.28) : Color.clear,
                                 in: RoundedRectangle(cornerRadius: 5, style: .continuous)
                             )
                     }
                     .buttonStyle(.plain)
-                    .help(language.t(session.cropSelection == nil ? .toolCrop : .crop))
-                    .disabled(!session.hasImage)
+                    .toolbarHoverTip(language.t(session.cropSelection == nil ? .toolCrop : .crop), schedule: scheduleHoverTip)
                     Button {
+                        guard session.hasImage else { return }
                         session.beginColorAdjust()
                     } label: {
                         Image(systemName: "slider.horizontal.3")
                             .font(.system(size: 13, weight: .medium))
                             .frame(width: 28, height: 24)
+                            .opacity(session.hasImage ? 1 : 0.35)
                     }
                     .buttonStyle(.plain)
-                    .help(language.t(.adjustColor))
-                    .disabled(!session.hasImage)
+                    .toolbarHoverTip(language.t(.adjustColor), schedule: scheduleHoverTip)
                     .popover(isPresented: $session.showAdjustColor, arrowEdge: .bottom) {
                         ColorAdjustPopover()
                             .environmentObject(session)
                             .environmentObject(language)
                     }
                     Button {
+                        guard session.hasImage else { return }
                         session.showAdjustSize = true
                     } label: {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                             .font(.system(size: 13, weight: .medium))
                             .frame(width: 28, height: 24)
+                            .opacity(session.hasImage ? 1 : 0.35)
                     }
                     .buttonStyle(.plain)
-                    .help(language.t(.adjustSize))
-                    .disabled(!session.hasImage)
+                    .toolbarHoverTip(language.t(.adjustSize), schedule: scheduleHoverTip)
                     Button {
+                        guard session.hasImage else { return }
                         session.showInspector.toggle()
                     } label: {
                         Image(systemName: "info.circle")
                             .font(.system(size: 13, weight: .medium))
                             .frame(width: 28, height: 24)
+                            .opacity(session.hasImage ? 1 : 0.35)
                     }
                     .buttonStyle(.plain)
-                    .help(language.t(.inspector))
-                    .disabled(!session.hasImage)
+                    .toolbarHoverTip(language.t(.inspector), schedule: scheduleHoverTip)
                     .popover(isPresented: $session.showInspector, arrowEdge: .bottom) {
                         InspectorPopover()
                             .environmentObject(session)
@@ -163,6 +174,32 @@ struct ViewerToolbarBar: View {
         }
         .frame(height: 38)
         .background(.bar)
+        .coordinateSpace(name: "toolbar")
+        .onDisappear {
+            hoverTask?.cancel()
+            hoverTip = nil
+        }
+    }
+
+    private func scheduleHoverTip(_ tip: ToolbarHoverTip?) {
+        hoverTask?.cancel()
+        if let tip {
+            if hoverTip != nil {
+                hoverTip = tip
+                return
+            }
+            hoverTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(240))
+                guard !Task.isCancelled else { return }
+                hoverTip = tip
+            }
+        } else {
+            hoverTask = Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(60))
+                guard !Task.isCancelled else { return }
+                hoverTip = nil
+            }
+        }
     }
 
     private var hairline: some View {
@@ -177,28 +214,35 @@ struct ViewerToolbarBar: View {
 
     private func toolButton(_ tool: MarkupTool, symbol: String, key: L10n.Key) -> some View {
         let selected = session.markupTool == tool
+        let tip = language.t(key)
         return Button {
+            guard session.hasImage else { return }
             session.setMarkupTool(tool)
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
                 .frame(width: 28, height: 24)
+                .opacity(session.hasImage ? 1 : 0.35)
                 .background(selected ? Color.accentColor.opacity(0.28) : Color.clear, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help(language.t(key))
-        .disabled(!session.hasImage)
+        .toolbarHoverTip(tip, schedule: scheduleHoverTip)
     }
 
     private func iconButton(_ symbol: String, key: L10n.Key, enabled: Bool = true, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        let active = session.hasImage && enabled
+        let tip = language.t(key)
+        return Button {
+            guard active else { return }
+            action()
+        } label: {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
                 .frame(width: 28, height: 24)
+                .opacity(active ? 1 : 0.35)
         }
         .buttonStyle(.plain)
-        .help(language.t(key))
-        .disabled(!session.hasImage || !enabled)
+        .toolbarHoverTip(tip, schedule: scheduleHoverTip)
     }
 
     private var fillToggle: some View {
@@ -206,11 +250,13 @@ struct ViewerToolbarBar: View {
         let enabled = session.hasImage && (session.markupTool.canFill || selectedCanFill)
         let filled = enabled && session.markupFilled
         return Button {
+            guard enabled else { return }
             session.setMarkupFilled(!session.markupFilled)
         } label: {
             Image(systemName: filled ? "square.fill" : "square")
                 .font(.system(size: 13, weight: .medium))
                 .frame(width: 28, height: 24)
+                .opacity(enabled ? 1 : 0.35)
                 .background(
                     filled ? Color.accentColor.opacity(0.28) : Color.primary.opacity(0.06),
                     in: RoundedRectangle(cornerRadius: 5, style: .continuous)
@@ -218,8 +264,7 @@ struct ViewerToolbarBar: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(language.t(filled ? .markupFill : .markupStroke))
-        .disabled(!enabled)
+        .toolbarHoverTip(language.t(session.markupFilled ? .markupFill : .markupStroke), schedule: scheduleHoverTip)
         .padding(.leading, 4)
     }
 
@@ -227,6 +272,7 @@ struct ViewerToolbarBar: View {
         let selectedIsText = session.markupItems.first(where: { $0.id == session.selectedMarkupID })?.isText == true
         let active = session.markupTool == .text || session.isEditingMarkupText || selectedIsText
         return Button {
+            guard session.hasImage else { return }
             session.setMarkupTextBackground(!session.markupFilled)
         } label: {
             Text("A")
@@ -238,6 +284,7 @@ struct ViewerToolbarBar: View {
                     in: RoundedRectangle(cornerRadius: 4, style: .continuous)
                 )
                 .frame(width: 28, height: 24)
+                .opacity(session.hasImage ? 1 : 0.35)
                 .background(
                     session.markupFilled && active
                         ? Color.accentColor.opacity(0.18)
@@ -247,8 +294,7 @@ struct ViewerToolbarBar: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(language.t(.textBackground))
-        .disabled(!session.hasImage)
+        .toolbarHoverTip(language.t(.textBackground), schedule: scheduleHoverTip)
         .padding(.leading, 2)
     }
 
@@ -256,6 +302,7 @@ struct ViewerToolbarBar: View {
         HStack(spacing: 4) {
             ForEach(MarkupColor.allCases, id: \.self) { color in
                 Button {
+                    guard session.hasImage else { return }
                     session.setMarkupColor(color)
                 } label: {
                     ZStack {
@@ -273,8 +320,8 @@ struct ViewerToolbarBar: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(language.t(.markupColor))
-                .disabled(!session.hasImage)
+                .opacity(session.hasImage ? 1 : 0.35)
+                .toolbarHoverTip(language.t(color.helpKey), schedule: scheduleHoverTip)
             }
         }
         .padding(.leading, 6)
@@ -284,6 +331,7 @@ struct ViewerToolbarBar: View {
         HStack(spacing: 2) {
             ForEach(MarkupWeight.allCases, id: \.self) { weight in
                 Button {
+                    guard session.hasImage else { return }
                     session.setMarkupWeight(weight)
                 } label: {
                     ZStack {
@@ -297,8 +345,8 @@ struct ViewerToolbarBar: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(language.t(weight.helpKey))
-                .disabled(!session.hasImage)
+                .opacity(session.hasImage ? 1 : 0.35)
+                .toolbarHoverTip(language.t(weight.helpKey), schedule: scheduleHoverTip)
             }
         }
         .padding(.leading, 4)
@@ -309,6 +357,7 @@ struct ViewerToolbarBar: View {
         HStack(spacing: 1) {
             ForEach(MarkupFontSize.allCases, id: \.self) { size in
                 Button {
+                    guard session.hasImage else { return }
                     session.setMarkupFontSize(size)
                 } label: {
                     Text("A")
@@ -322,8 +371,8 @@ struct ViewerToolbarBar: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(language.t(size.helpKey))
-                .disabled(!session.hasImage)
+                .opacity(session.hasImage ? 1 : 0.35)
+                .toolbarHoverTip(language.t(size.helpKey), schedule: scheduleHoverTip)
             }
         }
         .padding(.leading, 4)
@@ -548,5 +597,39 @@ struct AdjustSizeSheet: View {
             percentText = next
             syncingSize = false
         }
+    }
+}
+
+private extension View {
+    func toolbarHoverTip(_ text: String, schedule: @escaping (ToolbarHoverTip?) -> Void) -> some View {
+        modifier(ToolbarHoverTipModifier(text: text, schedule: schedule))
+    }
+}
+
+private struct ToolbarHoverTipModifier: ViewModifier {
+    let text: String
+    let schedule: (ToolbarHoverTip?) -> Void
+    @State private var midX: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityLabel(text)
+            .background(
+                GeometryReader { geo in
+                    let frame = geo.frame(in: .named("toolbar"))
+                    Color.clear
+                        .onAppear { midX = frame.midX }
+                        .onChange(of: frame) { _, new in
+                            midX = new.midX
+                        }
+                }
+            )
+            .onHover { inside in
+                if inside {
+                    schedule(ToolbarHoverTip(text: text, x: midX))
+                } else {
+                    schedule(nil)
+                }
+            }
     }
 }

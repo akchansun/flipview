@@ -176,6 +176,13 @@ enum L10n {
         case inspectorExposure
         case inspectorCaptured
         case markupColor
+        case colorRed
+        case colorOrange
+        case colorYellow
+        case colorGreen
+        case colorBlue
+        case colorWhite
+        case colorBlack
         case markupWeight
         case weightThin
         case weightRegular
@@ -336,6 +343,13 @@ enum L10n {
         .inspectorExposure: "Exposure",
         .inspectorCaptured: "Captured",
         .markupColor: "Markup color",
+        .colorRed: "Red",
+        .colorOrange: "Orange",
+        .colorYellow: "Yellow",
+        .colorGreen: "Green",
+        .colorBlue: "Blue",
+        .colorWhite: "White",
+        .colorBlack: "Black",
         .markupWeight: "Line width",
         .weightThin: "Thin",
         .weightRegular: "Medium",
@@ -503,6 +517,13 @@ enum L10n {
         .inspectorExposure: "曝光",
         .inspectorCaptured: "拍摄时间",
         .markupColor: "标注颜色",
+        .colorRed: "红色",
+        .colorOrange: "橙色",
+        .colorYellow: "黄色",
+        .colorGreen: "绿色",
+        .colorBlue: "蓝色",
+        .colorWhite: "白色",
+        .colorBlack: "黑色",
         .markupWeight: "线条粗细",
         .weightThin: "细",
         .weightRegular: "中",

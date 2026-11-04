@@ -71,6 +71,18 @@ enum MarkupColor: String, CaseIterable, Equatable {
             return .white
         }
     }
+
+    var helpKey: L10n.Key {
+        switch self {
+        case .red: return .colorRed
+        case .orange: return .colorOrange
+        case .yellow: return .colorYellow
+        case .green: return .colorGreen
+        case .blue: return .colorBlue
+        case .white: return .colorWhite
+        case .black: return .colorBlack
+        }
+    }
 }
 
 enum MarkupFontSize: String, CaseIterable, Equatable {

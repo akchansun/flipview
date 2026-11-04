@@ -5,14 +5,38 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @EnvironmentObject private var session: ImageSession
     @EnvironmentObject private var language: LanguageManager
+    @State private var toolbarTip: ToolbarHoverTip?
 
     var body: some View {
         VStack(spacing: 0) {
-            ViewerToolbarBar()
+            ViewerToolbarBar(hoverTip: $toolbarTip)
             Divider()
             viewerBody
         }
         .frame(minWidth: 480, minHeight: 320)
+        .overlay {
+            GeometryReader { geo in
+                if let toolbarTip {
+                    Text(toolbarTip.text)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+                        )
+                        .shadow(color: .black.opacity(0.2), radius: 7, y: 2)
+                        .fixedSize()
+                        .position(
+                            x: min(max(toolbarTip.x, 36), max(36, geo.size.width - 36)),
+                            y: 50
+                        )
+                }
+            }
+            .allowsHitTesting(false)
+        }
         .background(WindowConfigurator(title: session.windowTitle, isEdited: session.isDirty, session: session))
         .onOpenURL { url in
             session.open(url)
