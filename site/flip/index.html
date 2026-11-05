@@ -239,10 +239,12 @@
       <p class="lead">轻量看图，同目录翻页——像 Windows 照片查看器那样，打开一张图就能左右切换整夹照片。macOS 最新版 <strong>0.6.16</strong> 已含标注、裁剪与轻量编辑；Linux / Windows / 统信 UOS / 银河麒麟 / Deepin（Qt 1.3.0）同一套界面，不必为改图再切软件。<strong>完全免费</strong>（MIT），由<a href="https://www.ak129.cn/">安康喜相逢科技</a>维护。</p>
       <div class="actions">
         <a href="/flip/download.php" class="btn btn-primary"><i class="fab fa-apple"></i> 下载 macOS 版（0.6.16）</a>
-        <a href="https://github.com/akchansun/flipview/releases/tag/v0.6.16" class="btn btn-outline" target="_blank" rel="noopener"><i class="fab fa-github"></i> GitHub 发布页</a>
+        <a href="https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/flip-linux-1.3.0-amd64.tar.gz" class="btn btn-outline" target="_blank" rel="noopener"><i class="fab fa-linux"></i> 下载 Linux 版（1.3.0）</a>
+        <a href="https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/Flip-1.3.0-windows-x64.zip" class="btn btn-outline" target="_blank" rel="noopener"><i class="fab fa-windows"></i> 下载 Windows 版（1.3.0）</a>
+        <a href="https://github.com/akchansun/flipview/releases/tag/v0.6.16" class="btn btn-outline" target="_blank" rel="noopener"><i class="fab fa-github"></i> macOS 发布页</a>
         <a href="https://gitee.com/akcg/flipview" class="btn btn-outline" target="_blank" rel="noopener"><i class="fas fa-code-branch"></i> Gitee 源码</a>
         <a href="#macos-notes" class="btn btn-outline">0.6.16 更新说明</a>
-        <a href="#notes" class="btn btn-outline">Linux 1.3.0</a>
+        <a href="#linux" class="btn btn-outline">Linux / Windows 1.3.0</a>
         <a href="tel:17772968885" class="btn btn-outline">电话咨询</a>
       </div>
       <p class="flip-stats" id="flip-stats" aria-live="polite">访问 <strong id="stat-visits">—</strong> · 下载 <strong id="stat-downloads">—</strong></p>
@@ -360,24 +362,24 @@
         <li>同一套 Qt 6 源码，Ubuntu / UOS / 麒麟 / Deepin / Windows 共用</li>
         <li>不包含 PDF、签名、连续互通、iCloud</li>
         <li>帮助提示原文未改</li>
-        <li>应用内更新仍读本站 <code>version.json</code>。在 1.3.0 预编译包放到下载地址之前，Linux 检查更新仍为 1.2.3，以免指向空包</li>
+        <li>应用内更新读本站 <code>version.json</code>。Linux 当前为 <strong>1.3.0</strong>，会下载 amd64 的 tar.gz 并就地替换；Windows 打开下载页</li>
       </ul>
     </section>
 
     <section class="steps" id="linux">
       <h2>Linux / Windows / 国产系统（1.3.0）</h2>
-      <p class="notes-lead">Qt 客户端，与 macOS Flip 同一套工具条。源码在 GitHub <a href="https://github.com/akchansun/flipview/tree/cursor/desktop-sync-2c98/desktop" target="_blank" rel="noopener">akchansun/flipview</a> 的 <code>desktop/</code> 目录（完整说明见 <a href="https://github.com/akchansun/flipview/blob/cursor/desktop-sync-2c98/desktop/RELEASE_NOTES.md" target="_blank" rel="noopener">更新说明原文</a>）。Gitee <a href="https://gitee.com/akcg/flip-linux" target="_blank" rel="noopener">akcg/flip-linux</a> 上目前仍是 1.2.3 翻页版。</p>
+      <p class="notes-lead">Qt 客户端，与 macOS Flip 同一套工具条。预编译包在 GitHub Release <a href="https://github.com/akchansun/flipview/releases/tag/desktop-1.3.0" target="_blank" rel="noopener">desktop-1.3.0</a>（源码目录 <a href="https://github.com/akchansun/flipview/tree/desktop-1.3.0/desktop" target="_blank" rel="noopener"><code>desktop/</code></a>，说明见 <a href="https://github.com/akchansun/flipview/blob/desktop-1.3.0/desktop/RELEASE_NOTES.md" target="_blank" rel="noopener">更新说明原文</a>）。国内直接下载用本站镜像，文件与 GitHub 上的安装包相同。Gitee 上还没有这个 1.3.0 附件。</p>
       <div class="actions" style="margin-bottom:12px;">
-        <a href="https://github.com/akchansun/flipview/tree/cursor/desktop-sync-2c98/desktop" class="btn btn-primary" target="_blank" rel="noopener"><i class="fab fa-github"></i> 1.3.0 源码</a>
-        <a href="https://github.com/akchansun/flipview/blob/cursor/desktop-sync-2c98/desktop/RELEASE_NOTES.md" class="btn btn-outline" target="_blank" rel="noopener">更新说明</a>
-        <a href="https://gitee.com/akcg/flip-linux/releases/tag/v1.2.3" class="btn btn-outline" target="_blank" rel="noopener">1.2.3 预编译包</a>
-        <a href="https://github.com/akchansun/flip-linux" class="btn btn-outline" target="_blank" rel="noopener">GitHub flip-linux</a>
+        <a href="https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/flip-linux-1.3.0-amd64.tar.gz" class="btn btn-primary" target="_blank" rel="noopener"><i class="fab fa-linux"></i> Linux amd64（1.3.0）</a>
+        <a href="https://www.ak129.cn/flip/download/flip-linux-1.3.0-amd64.tar.gz" class="btn btn-outline">Linux 国内镜像</a>
+        <a href="https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/Flip-1.3.0-windows-x64.zip" class="btn btn-primary" target="_blank" rel="noopener"><i class="fab fa-windows"></i> Windows x64（1.3.0）</a>
+        <a href="https://www.ak129.cn/flip/download/Flip-1.3.0-windows-x64.zip" class="btn btn-outline">Windows 国内镜像</a>
+        <a href="https://github.com/akchansun/flipview/releases/tag/desktop-1.3.0" class="btn btn-outline" target="_blank" rel="noopener">GitHub 发布页</a>
       </div>
       <ol>
-        <li>用发行版软件源安装构建依赖（示例 Ubuntu / Debian）：<code>build-essential cmake ninja-build qt6-base-dev qt6-image-formats-plugins</code>；统信 / 麒麟用仓库里的 GCC、CMake、Qt 6（无则 Qt 5.15）。</li>
-        <li>克隆 <a href="https://github.com/akchansun/flipview" target="_blank" rel="noopener">akchansun/flipview</a> 后编译：<code>cmake -S desktop -B desktop/build -G Ninja -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build desktop/build</code>，运行 <code>./desktop/build/Flip 图片或目录</code>。</li>
-        <li>Windows 用同一 CMake 工程，再用 <code>windeployqt</code> 收集 Qt 运行库后打 zip。</li>
-        <li>运行依赖：目标机需已安装 Qt 6 运行库与 <code>qt6-image-formats-plugins</code>。现有预编译 amd64 包仍是 <strong>1.2.3（仅翻页）</strong>；1.3.0 请按上面从源码编译。</li>
+        <li><strong>Linux amd64：</strong>下载 <code>flip-linux-1.3.0-amd64.tar.gz</code>（<a href="https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/flip-linux-1.3.0-amd64.tar.gz">GitHub</a> 或<a href="https://www.ak129.cn/flip/download/flip-linux-1.3.0-amd64.tar.gz">本站镜像</a>），解压后运行其中的 <code>Flip</code>。目标机需已安装 Qt 6 运行库和 <code>qt6-image-formats-plugins</code>（打开 WebP、TIFF）。安装包在 Ubuntu 22.04 上编译，需要 glibc 2.35 或更高。统信 UOS、银河麒麟、Deepin 若系统满足上述 Qt 6 与 glibc，可用同一包。</li>
+        <li><strong>Windows x64：</strong>下载 <code>Flip-1.3.0-windows-x64.zip</code>（<a href="https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/Flip-1.3.0-windows-x64.zip">GitHub</a> 或<a href="https://www.ak129.cn/flip/download/Flip-1.3.0-windows-x64.zip">本站镜像</a>），解压后双击 <code>Flip.exe</code>。压缩包里已经带上 <code>windeployqt</code> 收集的 Qt 运行库和 VC 运行库，一般不用再单独安装 Qt。</li>
+        <li>从源码编译（可选）：安装 <code>build-essential cmake ninja-build qt6-base-dev qt6-image-formats-plugins</code>（统信 / 麒麟用仓库里的 GCC、CMake、Qt 6），然后 <code>cmake -S desktop -B desktop/build -G Ninja -DCMAKE_BUILD_TYPE=Release &amp;&amp; cmake --build desktop/build</code>，运行 <code>./desktop/build/Flip 图片或目录</code>。</li>
       </ol>
     </section>
 
@@ -393,7 +395,7 @@
       <p style="margin-top:14px;color:var(--muted);font-size:0.92rem;">软件服务说明：Flip 为通用看图工具，与彩票购彩无关。喜相逢科技其它产品见 <a href="https://www.ak129.cn/#products">官网产品区</a>。</p>
     </section>
 
-    <footer>喜相逢科技 · <a href="https://www.ak129.cn/">www.ak129.cn</a> · <a href="https://github.com/akchansun/flipview" target="_blank" rel="noopener">GitHub 源码</a> · <a href="https://gitee.com/akcg/flipview" target="_blank" rel="noopener">Gitee macOS</a> · <a href="https://gitee.com/akcg/flip-linux" target="_blank" rel="noopener">Gitee Linux 1.2.3</a></footer>
+    <footer>喜相逢科技 · <a href="https://www.ak129.cn/">www.ak129.cn</a> · <a href="https://github.com/akchansun/flipview" target="_blank" rel="noopener">GitHub 源码</a> · <a href="https://github.com/akchansun/flipview/releases/tag/desktop-1.3.0" target="_blank" rel="noopener">Linux / Windows 1.3.0</a> · <a href="https://gitee.com/akcg/flipview" target="_blank" rel="noopener">Gitee macOS</a> · <a href="https://gitee.com/akcg/flip-linux" target="_blank" rel="noopener">Gitee Linux 源码</a></footer>
   </div>
 
   <script>

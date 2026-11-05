@@ -5,6 +5,7 @@
 - 在 `desktop/` 同步 macOS Flip 0.6.x 的界面与轻量编辑：预览式顶部工具条（窄窗 `>>` 溢出，点标注才出第二行）、画笔 / 直线 / 箭头 / 矩形 / 圆角矩形 / 椭圆 / 高亮 / 文字、填充、微信式文字背景、横线线宽、裁剪八控点、旋转翻转、调色 / 改尺寸 / 检查器、移除背景、剪贴板新建、存储与打印
 - 同一套 Qt 6 源码面向 Ubuntu、Windows、统信 UOS、银河麒麟、Deepin
 - 帮助菜单、使用提示原文、关于与「访问 Flip 产品页」保持原 Linux 文案
+- 预编译包在 GitHub Release `desktop-1.3.0`：`flip-linux-1.3.0-amd64.tar.gz`（Ubuntu 22.04 / glibc 2.35+，动态链接 Qt 6）与 `Flip-1.3.0-windows-x64.zip`（含 windeployqt 的 Qt 运行库）。`akchansun/flip-linux` 无写权限，资产挂在 flipview，且不把该 Release 标为 Latest，以免盖过 macOS v0.6.16
 
 ## 0.4.9
 

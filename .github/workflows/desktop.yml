@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   linux:
-    # Ubuntu 22.04 ships glibc 2.34, the same floor as the published flip-linux 1.2.3 binary.
+    # Ubuntu 22.04 is glibc 2.35. flip-linux 1.2.3 needed 2.34; keep this runner so we do not go newer.
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -123,10 +123,11 @@ jobs:
           tag="${GITHUB_REF_NAME}"
           version="${tag#desktop-}"
           find release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print | sort
-          (
-            cd release-assets
-            find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print | sort | xargs sha256sum
-          ) | tee release-assets/SHA256SUMS
+          : > release-assets/SHA256SUMS
+          while IFS= read -r asset; do
+            sha256sum "$asset" | awk -v name="$(basename "$asset")" '{print $1 "  " name}'
+          done < <(find release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' \) | sort) \
+            | tee release-assets/SHA256SUMS
           {
             echo "预编译包（tag \`${tag}\`，源码目录 \`desktop/\`，版本 ${version}）。"
             echo

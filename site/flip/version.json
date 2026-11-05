@@ -13,21 +13,39 @@
       "site": "https://www.ak129.cn/flip/download.php",
       "gitee": "https://gitee.com/akcg/flipview",
       "github": "https://github.com/akchansun/flipview/releases/tag/v0.6.16",
-      "githubAsset": "https://github.com/akchansun/flipview/releases/download/v0.6.16/Flip-0.6.16-macos-universal.zip"
+      "githubAsset": "https://github.com/akchansun/flipview/releases/download/v0.6.16/Flip-0.6.16-macos-universal.zip",
+      "giteeAsset": "https://www.ak129.cn/flip/download/Flip-0.6.16-macos-universal.zip",
+      "siteAsset": "https://www.ak129.cn/flip/download/Flip-0.6.16-macos-universal.zip"
     }
   },
   "linux": {
-    "version": "1.2.3",
+    "version": "1.3.0",
     "notes": {
-      "zh": "帮助菜单可打开使用提示（与启动说明相同）与产品页；F1 打开提示。需 Qt 6。",
-      "en": "Help menu opens usage tips (same as launch tips) and the product page; F1 opens tips. Needs Qt 6."
+      "zh": "1.3.0：与 macOS 同一套工具条，可标注、裁剪、调色、改尺寸。amd64 预编译包需本机 Qt 6 与 glibc 2.35+（Ubuntu 22.04 及以上）。",
+      "en": "1.3.0 matches the macOS toolbar: markup, crop, color, and resize. The amd64 build needs Qt 6 on the machine and glibc 2.35+ (Ubuntu 22.04 or newer)."
     },
     "download": {
       "site": "https://www.ak129.cn/flip/#linux",
-      "gitee": "https://gitee.com/akcg/flip-linux/releases/tag/v1.2.3",
-      "github": "https://github.com/akchansun/flip-linux/releases/tag/v1.2.3",
-      "giteeAsset": "https://gitee.com/akcg/flip-linux/releases/download/v1.2.3/flip-linux-1.2.3-amd64.tar.gz",
-      "githubAsset": "https://github.com/akchansun/flip-linux/releases/download/v1.2.3/flip-linux-1.2.3-amd64.tar.gz"
+      "gitee": "https://gitee.com/akcg/flip-linux",
+      "github": "https://github.com/akchansun/flipview/releases/tag/desktop-1.3.0",
+      "giteeAsset": "https://www.ak129.cn/flip/download/flip-linux-1.3.0-amd64.tar.gz",
+      "githubAsset": "https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/flip-linux-1.3.0-amd64.tar.gz",
+      "siteAsset": "https://www.ak129.cn/flip/download/flip-linux-1.3.0-amd64.tar.gz"
+    }
+  },
+  "windows": {
+    "version": "1.3.0",
+    "notes": {
+      "zh": "1.3.0：解压即用。压缩包内含 Flip.exe 与 Qt 运行库。",
+      "en": "1.3.0: unzip and run. The zip includes Flip.exe and the Qt runtime."
+    },
+    "download": {
+      "site": "https://www.ak129.cn/flip/#linux",
+      "gitee": "https://gitee.com/akcg/flip-linux",
+      "github": "https://github.com/akchansun/flipview/releases/tag/desktop-1.3.0",
+      "giteeAsset": "https://www.ak129.cn/flip/download/Flip-1.3.0-windows-x64.zip",
+      "githubAsset": "https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/Flip-1.3.0-windows-x64.zip",
+      "siteAsset": "https://www.ak129.cn/flip/download/Flip-1.3.0-windows-x64.zip"
     }
   }
 }
