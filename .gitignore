@@ -14,3 +14,4 @@ playground.xcworkspace
 *.dSYM
 *.app/
 site/flip/download/*.zip
+site/flip/download/*.tar.gz

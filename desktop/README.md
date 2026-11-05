@@ -86,6 +86,13 @@ QT_QPA_PLATFORM=offscreen ./build/Flip --self-test
 
 产物在 `dist/flip-linux-<version>-amd64.tar.gz`。
 
+已发布的 1.3.0 安装包（GitHub Release `desktop-1.3.0`，flip-linux 仓库没有写入权限）：
+
+- Linux amd64：https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/flip-linux-1.3.0-amd64.tar.gz
+- Windows x64（含 Qt 运行库）：https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/Flip-1.3.0-windows-x64.zip
+
+Linux 包在 Ubuntu 22.04 上编译，需要 glibc 2.35 或更高，以及本机的 Qt 6 运行库。Windows 压缩包解压后直接运行 `Flip.exe`。
+
 ### AppImage（可选）
 
 可用 [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy) 与 `linuxdeploy-plugin-qt` 把 `build/Flip` 打成 AppImage，便于拷到没有开发包的电脑。本仓库不绑定特定打包主机。在 amd64 Linux 上大致步骤：
@@ -160,4 +167,9 @@ CMake prefers Qt 6 and falls back to Qt 5.15 if Qt 6 development packages are mi
 
 UOS / Kylin: install GCC, CMake, and Qt 6 (or 5.15) from the distro repositories, then use the same CMake commands. Widgets UI is intended to stay compatible with DDE and UKUI.
 
-See the Chinese section above for packaging notes (tarball / AppImage) and keyboard shortcuts.
+Published 1.3.0 packages are on the flipview release `desktop-1.3.0`:
+
+- Linux amd64: https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/flip-linux-1.3.0-amd64.tar.gz (built on Ubuntu 22.04, needs glibc 2.35+ and a Qt 6 runtime)
+- Windows x64: https://github.com/akchansun/flipview/releases/download/desktop-1.3.0/Flip-1.3.0-windows-x64.zip (`Flip.exe` plus the Qt runtime from `windeployqt`)
+
+See the Chinese section above for build steps, AppImage notes, and keyboard shortcuts.
