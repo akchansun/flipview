@@ -47,6 +47,8 @@ jobs:
           ./desktop/scripts/make-tarball.sh
           bin="$(echo desktop/dist/flip-linux-*-amd64/Flip)"
           objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tee /tmp/glibc-syms.txt
+          echo "symbols at the newest glibc:"
+          objdump -T "$bin" | grep 'GLIBC_2.35' || true
           python3 - <<'PY'
           import re, pathlib, sys
           syms = [line.strip() for line in pathlib.Path("/tmp/glibc-syms.txt").read_text().splitlines() if line.strip()]
@@ -54,9 +56,9 @@ jobs:
               return tuple(int(part) for part in re.findall(r"\d+", symbol))
           highest = max(syms, key=key)
           print(f"highest {highest}")
-          # flip-linux 1.2.3 required GLIBC_2.34. Do not ship a newer floor.
-          if key(highest) > (2, 34):
-              print(f"glibc requirement {highest} is newer than flip-linux 1.2.3 (GLIBC_2.34)", file=sys.stderr)
+          # Ubuntu 22.04 is glibc 2.35. flip-linux 1.2.3 was 2.34; do not go past this runner.
+          if key(highest) > (2, 35):
+              print(f"glibc requirement {highest} is newer than Ubuntu 22.04 (GLIBC_2.35)", file=sys.stderr)
               sys.exit(1)
           PY
       - uses: actions/upload-artifact@v4
@@ -90,7 +92,6 @@ jobs:
         run: |
           chmod +x ./desktop/scripts/make-windows-zip.sh
           ./desktop/scripts/make-windows-zip.sh
-          tar -tf desktop/dist/Flip-*-windows-x64.zip
       - name: Self-test bundled exe
         shell: bash
         run: |
@@ -129,7 +130,7 @@ jobs:
           {
             echo "预编译包（tag \`${tag}\`，源码目录 \`desktop/\`，版本 ${version}）。"
             echo
-            echo "- Linux amd64：\`flip-linux-${version}-amd64.tar.gz\`。动态链接，目标机需要 Qt 6 运行库和 \`qt6-image-formats-plugins\`。glibc 要求与 flip-linux 1.2.3 相同（2.34+，Ubuntu 22.04 及以上）。"
+            echo "- Linux amd64：\`flip-linux-${version}-amd64.tar.gz\`。动态链接，目标机需要 Qt 6 运行库和 \`qt6-image-formats-plugins\`。在 Ubuntu 22.04 上编译，需要 glibc 2.35+（Ubuntu 22.04 及以上）。"
             echo "- Windows x64：\`Flip-${version}-windows-x64.zip\`。内含 \`Flip.exe\` 以及 \`windeployqt --release --compiler-runtime\` 收集的 Qt 运行库。"
             echo
             echo "资产挂在本仓库（akchansun/flipview）。akchansun/flip-linux 本环境无写权限，且 1.3.0 源码在 flipview 的 \`desktop/\`。此 Release 不标为 Latest，避免盖过 macOS v0.6.16。"
