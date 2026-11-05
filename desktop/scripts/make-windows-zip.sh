@@ -59,6 +59,29 @@ cp "${ROOT}/examples/"*.png "${STAGE}/examples/" 2>/dev/null || true
 export MSYS_NO_PATHCONV=1
 windeployqt --release --compiler-runtime "$(to_win "${STAGE}/Flip.exe")"
 
+# windeployqt skips the MSVC CRT when VCINSTALLDIR is unset on the runner
+# ("Cannot find Visual Studio installation directory"). Copy it explicitly.
+copy_msvc_runtime() {
+  local vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+  if [[ ! -f "${vswhere}" ]]; then
+    echo "vswhere not found; cannot copy the MSVC runtime" >&2
+    return 1
+  fi
+  local dll crt
+  dll="$("${vswhere}" -latest -products '*' \
+    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
+    -find 'VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT/vcruntime140.dll' \
+    | tr -d '\r' | sort -V | tail -n1)"
+  if [[ -z "${dll}" ]]; then
+    echo "vcruntime140.dll not found in the Visual Studio redist" >&2
+    return 1
+  fi
+  crt="$(dirname "$(to_unix "${dll}")")"
+  echo "Copying MSVC CRT from ${crt}"
+  cp -a "${crt}/"*.dll "${STAGE}/"
+}
+copy_msvc_runtime
+
 # Image plugins (WebP/TIFF) are loaded by name, so windeployqt may skip them
 # unless the Qt imageformats module was scanned. Copy the release plugins we have.
 if command -v qmake >/dev/null 2>&1; then
@@ -79,7 +102,8 @@ if command -v qmake >/dev/null 2>&1; then
   fi
 fi
 
-for required in Flip.exe Qt6Core.dll Qt6Gui.dll Qt6Widgets.dll platforms/qwindows.dll; do
+for required in Flip.exe Qt6Core.dll Qt6Gui.dll Qt6Widgets.dll platforms/qwindows.dll \
+  imageformats/qjpeg.dll imageformats/qwebp.dll vcruntime140.dll msvcp140.dll; do
   if [[ ! -f "${STAGE}/${required}" ]]; then
     echo "windows bundle missing ${required}" >&2
     find "${STAGE}" -type f | sort >&2 || true
@@ -89,6 +113,14 @@ done
 
 ARCHIVE="${ROOT}/dist/Flip-${VERSION}-windows-x64.zip"
 rm -f "${ARCHIVE}"
-tar -a -cf "${ARCHIVE}" -C "${ROOT}/dist" "Flip-${VERSION}-windows-x64"
+# Git Bash tar -a writes a POSIX tar even when the name ends in .zip. Use a real zip.
+stage_win="$(to_win "${STAGE}")"
+archive_win="$(to_win "${ARCHIVE}")"
+powershell.exe -NoProfile -Command "Compress-Archive -LiteralPath '${stage_win}' -DestinationPath '${archive_win}' -Force"
+magic="$(od -An -tx1 -N2 "${ARCHIVE}" | tr -d ' \n')"
+if [[ "${magic}" != "504b" ]]; then
+  echo "archive is not a zip (magic ${magic})" >&2
+  exit 1
+fi
 echo "Wrote ${ARCHIVE}"
 ls -lh "${ARCHIVE}"
