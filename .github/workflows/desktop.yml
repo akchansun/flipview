@@ -1,18 +1,32 @@
 name: Desktop
 
 on:
-  push:
-    paths:
-      - "desktop/**"
-      - ".github/workflows/desktop.yml"
+  workflow_dispatch:
   pull_request:
     paths:
       - "desktop/**"
       - ".github/workflows/desktop.yml"
+  push:
+    # Path filters are not evaluated for tag pushes, so desktop-* tags still publish.
+    branches:
+      - "**"
+    tags:
+      - "desktop-*"
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   linux:
-    runs-on: ubuntu-24.04
+    # Ubuntu 22.04 ships glibc 2.34, the same floor as the published flip-linux 1.2.3 binary.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install Qt 6
@@ -28,7 +42,27 @@ jobs:
       - name: Self-test
         run: QT_QPA_PLATFORM=offscreen ./desktop/build/Flip --self-test
       - name: Tarball
-        run: ./desktop/scripts/make-tarball.sh
+        run: |
+          ./desktop/scripts/make-tarball.sh
+          bin="$(echo desktop/dist/flip-linux-*-amd64/Flip)"
+          objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | sort -Vu | tee /tmp/glibc-syms.txt
+          python3 - <<'PY'
+          import re, pathlib, sys
+          syms = [line.strip() for line in pathlib.Path("/tmp/glibc-syms.txt").read_text().splitlines() if line.strip()]
+          def key(symbol):
+              return tuple(int(part) for part in re.findall(r"\d+", symbol))
+          highest = max(syms, key=key)
+          print(f"highest {highest}")
+          # flip-linux 1.2.3 required GLIBC_2.34. Do not ship a newer floor.
+          if key(highest) > (2, 34):
+              print(f"glibc requirement {highest} is newer than flip-linux 1.2.3 (GLIBC_2.34)", file=sys.stderr)
+              sys.exit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flip-linux-amd64
+          path: desktop/dist/flip-linux-*-amd64.tar.gz
+          if-no-files-found: error
 
   windows:
     runs-on: windows-latest
@@ -37,6 +71,7 @@ jobs:
       - uses: jurplel/install-qt-action@v4
         with:
           version: "6.7.3"
+          modules: "qtimageformats"
           cache: true
       - name: Build
         shell: bash
@@ -47,5 +82,77 @@ jobs:
         shell: bash
         run: |
           exe=desktop/build/Flip.exe
-          if [[ ! -x "$exe" ]]; then exe=desktop/build/Release/Flip.exe; fi
+          if [[ ! -f "$exe" ]]; then exe=desktop/build/Release/Flip.exe; fi
           ./$exe --self-test
+      - name: Zip with Qt runtime
+        shell: bash
+        run: |
+          chmod +x ./desktop/scripts/make-windows-zip.sh
+          ./desktop/scripts/make-windows-zip.sh
+          tar -tf desktop/dist/Flip-*-windows-x64.zip
+      - name: Self-test bundled exe
+        shell: bash
+        run: |
+          stage="$(echo desktop/dist/Flip-*-windows-x64)"
+          (
+            cd "$stage"
+            PATH="/c/Windows/System32:/usr/bin" ./Flip.exe --self-test
+          )
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flip-windows-x64
+          path: desktop/dist/Flip-*-windows-x64.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [linux, windows]
+    if: startsWith(github.ref, 'refs/tags/desktop-')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          version="${tag#desktop-}"
+          find release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print | sort
+          (
+            cd release-assets
+            find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) -print | sort | xargs sha256sum
+          ) | tee release-assets/SHA256SUMS
+          {
+            echo "预编译包（tag \`${tag}\`，源码目录 \`desktop/\`，版本 ${version}）。"
+            echo
+            echo "- Linux amd64：\`flip-linux-${version}-amd64.tar.gz\`。动态链接，目标机需要 Qt 6 运行库和 \`qt6-image-formats-plugins\`。glibc 要求与 flip-linux 1.2.3 相同（2.34+，Ubuntu 22.04 及以上）。"
+            echo "- Windows x64：\`Flip-${version}-windows-x64.zip\`。内含 \`Flip.exe\` 以及 \`windeployqt --release --compiler-runtime\` 收集的 Qt 运行库。"
+            echo
+            echo "资产挂在本仓库（akchansun/flipview）。akchansun/flip-linux 本环境无写权限，且 1.3.0 源码在 flipview 的 \`desktop/\`。此 Release 不标为 Latest，避免盖过 macOS v0.6.16。"
+            echo
+            echo "Gitee（akcg/flip-linux、akcg/flipview）尚未上传这些文件。国内镜像在部署产品站后为："
+            echo
+            echo "- https://www.ak129.cn/flip/download/flip-linux-${version}-amd64.tar.gz"
+            echo "- https://www.ak129.cn/flip/download/Flip-${version}-windows-x64.zip"
+            echo
+            cat desktop/RELEASE_NOTES.md
+          } > /tmp/flip-desktop-notes.md
+          mapfile -t files < <(find release-assets -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name 'SHA256SUMS' \) | sort)
+          if [[ "${#files[@]}" -lt 3 ]]; then
+            echo "expected linux tarball, windows zip, and SHA256SUMS" >&2
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${files[@]}" --clobber
+          else
+            gh release create "$tag" \
+              --verify-tag \
+              --latest=false \
+              --title "Flip Desktop ${version}（Linux / Windows）" \
+              --notes-file /tmp/flip-desktop-notes.md \
+              "${files[@]}"
+          fi
+          gh release view "$tag" --json url,assets --jq '{url:.url,assets:[.assets[].name]}'
